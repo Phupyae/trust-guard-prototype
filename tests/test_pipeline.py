@@ -1,0 +1,119 @@
+"""Fast offline tests (no API key, no internet). Run: pytest -q"""
+import sys
+from pathlib import Path
+
+import pytest
+
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+
+from modules import policy_rules  # noqa: E402
+from modules.document_loader import load_knowledge_base  # noqa: E402
+from modules.evidence_retriever import EvidenceRetriever, TfidfEmbedder  # noqa: E402
+from modules.llm_client import MockClient  # noqa: E402
+from modules.pipeline import InputError, run_pipeline  # noqa: E402
+from modules.schemas import CONTRADICTED, INSUFFICIENT_EVIDENCE, SUPPORTED, Claim, Evidence  # noqa: E402
+from modules.claim_verifier import verify_claim  # noqa: E402
+
+
+@pytest.fixture(scope="module")
+def chunks():
+    return load_knowledge_base()
+
+
+@pytest.fixture(scope="module")
+def retriever(chunks):
+    return EvidenceRetriever(chunks, TfidfEmbedder())
+
+
+# --- loader ---
+def test_pdf_and_markdown_give_same_sections(chunks):
+    md = load_knowledge_base(prefer="md")
+    assert [(c.chunk_id, c.text) for c in chunks] == [(c.chunk_id, c.text) for c in md]
+
+
+def test_section_42_is_parsed_with_citation(chunks):
+    c = next(c for c in chunks if c.chunk_id == "TRAVEL_POLICY_V2::4.2")
+    assert c.section_title == "Daily Allowance" and "$150 per day" in c.text
+
+
+def test_superseded_policy_not_searchable(retriever):
+    assert all(c.status == "Approved" for c in retriever.chunks)
+    assert retriever.excluded > 0
+
+
+# --- rules ---
+def test_numeric_mismatch():
+    result, msg = policy_rules.numeric_check("up to $200 per day", "up to $150 per day")
+    assert result == "mismatch" and "$200" in msg and "$150" in msg
+
+
+def test_numeric_match_and_units_kept_apart():
+    assert policy_rules.numeric_check("within 30 days", "within 30 calendar days")[0] == "match"
+    # "10 working days" must not be compared as plain days
+    assert policy_rules.numeric_check("within 10 days", "within 10 working days")[0] == "n/a"
+
+
+def test_requirement_conflict_and_double_negative():
+    ev = "All claims require manager approval."
+    assert policy_rules.requirement_check("All claims are automatically approved.", ev)[0] == "mismatch"
+    assert policy_rules.requirement_check("No claim is approved automatically.", ev)[0] == "n/a"
+    assert policy_rules.requirement_check("Receipts are not required.",
+                                          "Receipts must be attached for every expense above $25.")[0] == "mismatch"
+
+
+def test_quote_check():
+    assert policy_rules.quote_in_passage("claim up to $150 per day", "Employees may claim up to $150 per day.")
+    assert not policy_rules.quote_in_passage("claim up to $200 per day", "Employees may claim up to $150 per day.")
+
+
+# --- verifier safety behaviour ---
+class FixedLLM:
+    def __init__(self, verdict):
+        self.verdict = verdict
+
+    def structured(self, *a, **k):
+        return self.verdict
+
+
+def test_rule_downgrades_wrong_supported_verdict(retriever):
+    claim = Claim(1, "Employees can claim up to $200 per day for overseas travel.")
+    ev = retriever.search(claim.claim)
+    llm = FixedLLM({"status": SUPPORTED, "evidence_passage": 1, "evidence_quote": "", "explanation": "Looks fine."})
+    r = verify_claim(claim, "q", ev, retriever.relevant(ev), llm)
+    assert r.status == INSUFFICIENT_EVIDENCE and r.needs_review
+
+
+def test_no_relevant_evidence_skips_llm(retriever):
+    class Boom:
+        def structured(self, *a, **k):
+            raise AssertionError("LLM should not be called")
+    claim = Claim(1, "zzz qqq")
+    r = verify_claim(claim, "q", [], [], Boom())
+    assert r.status == INSUFFICIENT_EVIDENCE
+
+
+def test_invented_quote_is_replaced(retriever):
+    claim = Claim(1, "Hotels are reimbursed up to $250 per night.")
+    ev = retriever.search(claim.claim)
+    llm = FixedLLM({"status": SUPPORTED, "evidence_passage": 1,
+                    "evidence_quote": "This sentence does not exist.", "explanation": "ok"})
+    r = verify_claim(claim, "q", ev, retriever.relevant(ev), llm)
+    assert r.evidence == retriever.relevant(ev)[0].chunk.text and r.needs_review
+
+
+# --- end to end (mock LLM) ---
+def test_demo_scenario_end_to_end(retriever):
+    # The mock extractor only splits sentences; it can't make claims self-contained
+    # the way the real Claude prompt does, so the test sentence carries its own context.
+    report = run_pipeline("What are the reimbursement rules for overseas business travel?",
+                          "Employees can claim up to $200 per day for overseas travel. "
+                          "All claims are automatically approved.",
+                          retriever, MockClient())
+    assert [r.status for r in report.results] == [CONTRADICTED, CONTRADICTED]
+    assert report.results[0].section == "4.2"
+    assert report.overall[0] == "error"
+
+
+def test_empty_answer_rejected(retriever):
+    with pytest.raises(InputError):
+        run_pipeline("q", "   ", retriever, MockClient())

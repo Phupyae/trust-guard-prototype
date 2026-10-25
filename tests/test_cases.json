@@ -1,0 +1,47 @@
+{
+  "_note": "Labelled test cases. expected = the status a human expects for each claim, in order. Run: python tests/run_eval.py",
+  "cases": [
+    {
+      "id": "A_correct",
+      "label": "A — Correct answer",
+      "question": "What are the reimbursement rules for overseas business travel?",
+      "answer": "Employees can claim up to $150 per day for overseas business travel. All claims require manager approval.",
+      "expected": ["SUPPORTED", "SUPPORTED"]
+    },
+    {
+      "id": "B_incorrect",
+      "label": "B — Incorrect answer (demo scenario)",
+      "question": "What are the reimbursement rules for overseas business travel?",
+      "answer": "Employees can claim up to $200 per day. All claims are automatically approved.",
+      "expected": ["CONTRADICTED", "CONTRADICTED"]
+    },
+    {
+      "id": "C_unknown",
+      "label": "C — Not covered by policy",
+      "question": "How much paid maternity leave do employees get?",
+      "answer": "Employees are entitled to 16 weeks of paid maternity leave.",
+      "expected": ["INSUFFICIENT_EVIDENCE"]
+    },
+    {
+      "id": "D_partial",
+      "label": "D — Partially correct answer",
+      "question": "When do I need to submit my travel claim and do I need receipts?",
+      "answer": "Travel claims must be submitted within 30 calendar days of returning. Receipts are not required for any expense.",
+      "expected": ["SUPPORTED", "CONTRADICTED"]
+    },
+    {
+      "id": "E_outdated",
+      "label": "E — Outdated (superseded v1) figures",
+      "question": "What is the hotel limit and claim deadline for overseas trips?",
+      "answer": "Hotels are reimbursed up to $200 per night. Claims can be submitted within 60 days of returning.",
+      "expected": ["CONTRADICTED", "CONTRADICTED"]
+    },
+    {
+      "id": "F_process",
+      "label": "F — Claims process (SOP)",
+      "question": "How long does Finance take to process an approved expense claim?",
+      "answer": "Finance Operations processes approved claims within 10 working days of approval, and reimbursements are paid with the next monthly payroll.",
+      "expected": ["SUPPORTED", "SUPPORTED"]
+    }
+  ]
+}
