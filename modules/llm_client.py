@@ -25,7 +25,11 @@ class ClaudeClient:
     def __init__(self, api_key: str = config.ANTHROPIC_API_KEY, model: str = config.CLAUDE_MODEL):
         if not api_key:
             raise LLMError("ANTHROPIC_API_KEY is not set. Copy .env.example to .env and add your key.")
-        import anthropic
+        try:
+            import anthropic
+        except ImportError as e:
+            raise LLMError("The anthropic package is not installed in this Python environment. "
+                           "Activate .venv and run: pip install -r requirements.txt") from e
         self._anthropic = anthropic
         self.client = anthropic.Anthropic(api_key=api_key, max_retries=2, timeout=60)
         self.model = model
@@ -67,8 +71,12 @@ class GeminiClient:
     def __init__(self, api_key: str = config.GEMINI_API_KEY, model: str = config.GEMINI_MODEL):
         if not api_key:
             raise LLMError("GEMINI_API_KEY is not set. Get a free key at aistudio.google.com and add it to .env.")
-        from google import genai
-        from google.genai import errors, types
+        try:
+            from google import genai
+            from google.genai import errors, types
+        except ImportError as e:
+            raise LLMError("The google-genai package is not installed in this Python environment. "
+                           "Activate .venv and run: pip install -r requirements.txt") from e
         self._errors, self._types = errors, types
         self.client = genai.Client(api_key=api_key)
         self.model = model
