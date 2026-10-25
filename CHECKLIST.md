@@ -12,10 +12,10 @@
 - [x] 12 offline unit tests passing
 
 ## ⏳ Sun 25 Oct (tonight) — get it running on your laptop
-- [ ] Create Anthropic Console account, add ~US$5 credit, create API key
+- [ ] Get a free Gemini key at aistudio.google.com (or a paid Anthropic key)
 - [ ] Clone repo → `python -m venv .venv` → activate → `pip install -r requirements.txt`
 - [ ] `cp .env.example .env`, paste key
-- [ ] `pytest -q` → expect 12 passed
+- [ ] `pytest -q` → expect 13 passed
 - [ ] `streamlit run app.py` → run example **B**; you should see 2 × CONTRADICTED citing §4.2 and §7.2
 - [ ] `python tests/run_eval.py` → note the accuracy; screenshot any ✗ rows
 

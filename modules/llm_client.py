@@ -58,6 +58,60 @@ class ClaudeClient:
         raise LLMError("The model did not return a structured result.")
 
 
+class GeminiClient:
+    """Google Gemini backend (has a free tier). Same idea as ClaudeClient: we hand
+    the API our JSON schema and it constrains the output to match it, here via
+    response_json_schema instead of a forced tool call."""
+    name = "gemini"
+
+    def __init__(self, api_key: str = config.GEMINI_API_KEY, model: str = config.GEMINI_MODEL):
+        if not api_key:
+            raise LLMError("GEMINI_API_KEY is not set. Get a free key at aistudio.google.com and add it to .env.")
+        from google import genai
+        from google.genai import errors, types
+        self._errors, self._types = errors, types
+        self.client = genai.Client(api_key=api_key)
+        self.model = model
+
+    def structured(self, system: str, user: str, tool_name: str, schema: dict,
+                   context: dict | None = None, max_tokens: int = 1500) -> dict:
+        import json
+        import time
+        cfg = self._types.GenerateContentConfig(
+            system_instruction=system,
+            temperature=0,
+            max_output_tokens=max_tokens,
+            response_mime_type="application/json",
+            response_json_schema=schema,
+        )
+        for attempt in range(3):
+            try:
+                response = self.client.models.generate_content(model=self.model, contents=user, config=cfg)
+                break
+            except self._errors.ClientError as e:
+                # Free tier has a low requests-per-minute cap; parallel claim checks can hit it.
+                if e.code == 429 and attempt < 2:
+                    time.sleep(5 * (attempt + 1))
+                    continue
+                if e.code == 429:
+                    raise LLMError("Gemini free-tier rate limit reached. Wait a minute, or the daily "
+                                   "quota may be used up.") from e
+                if e.code in (401, 403) or "API key" in str(e):
+                    raise LLMError("The Gemini API key was rejected. Check GEMINI_API_KEY.") from e
+                raise LLMError(f"Gemini API error ({e.code}): {e.message}") from e
+            except self._errors.ServerError as e:
+                if attempt < 2:
+                    time.sleep(3)
+                    continue
+                raise LLMError(f"Gemini server error ({e.code}). Try again shortly.") from e
+            except Exception as e:
+                raise LLMError(f"Could not reach the Gemini API: {type(e).__name__}") from e
+        try:
+            return json.loads(response.text)
+        except (TypeError, ValueError) as e:
+            raise LLMError("Gemini returned output that was not valid JSON.") from e
+
+
 class MockClient:
     """Offline stand-in used ONLY for development and automated tests.
 
@@ -103,4 +157,6 @@ def get_client(provider: str = config.LLM_PROVIDER):
         return MockClient()
     if provider == "claude":
         return ClaudeClient()
-    raise LLMError(f"Unknown LLM_PROVIDER '{provider}'. Use 'claude' or 'mock'.")
+    if provider == "gemini":
+        return GeminiClient()
+    raise LLMError(f"Unknown LLM_PROVIDER '{provider}'. Use 'claude', 'gemini' or 'mock'.")

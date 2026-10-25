@@ -19,7 +19,7 @@ python -m venv .venv
 pip install -r requirements.txt
 
 cp .env.example .env        # Windows: copy .env.example .env
-# open .env and paste your ANTHROPIC_API_KEY
+# open .env and paste your GEMINI_API_KEY (free) or set LLM_PROVIDER=claude + ANTHROPIC_API_KEY
 
 streamlit run app.py
 ```
@@ -29,7 +29,7 @@ The first run downloads the embedding model (~90 MB) from Hugging Face. After th
 | Command | What it does |
 |---|---|
 | `streamlit run app.py` | The demo dashboard |
-| `pytest -q` | 12 offline tests (no API key needed) |
+| `pytest -q` | 13 offline tests (no API key needed) |
 | `python tests/run_eval.py` | Runs every labelled case through the **real** pipeline and prints accuracy |
 | `python scripts/inspect_retrieval.py` | Shows retrieval scores so you can tune the relevance threshold |
 | `python scripts/build_pdfs.py` | Rebuilds the policy PDFs after editing `knowledge_base/source/*.md` |
@@ -96,7 +96,9 @@ Source files live in `knowledge_base/source/*.md` and are published as PDFs, mir
 ## Configuration (`.env`)
 | Variable | Default | Notes |
 |---|---|---|
+| `LLM_PROVIDER` | `gemini` | `gemini` (free tier), `claude` (paid), or `mock` = offline heuristics for development only (the UI shows a purple warning) |
+| `GEMINI_API_KEY` | — | Free from aistudio.google.com. Free-tier prompts may be used by Google for training, which is fine for our fictional data but means no real data should ever go in |
+| `GEMINI_MODEL` | `gemini-3.5-flash-lite` | Flash-Lite has a larger free daily allowance than Flash |
 | `ANTHROPIC_API_KEY` | — | From console.anthropic.com (billed separately from a Claude subscription) |
 | `CLAUDE_MODEL` | `claude-haiku-5-5` | Switch to `claude-sonnet-5-5` if verification quality isn't good enough |
-| `LLM_PROVIDER` | `claude` | `mock` = offline keyword heuristics for development only (the UI shows a purple warning) |
 | `EMBEDDING_MODEL` | `all-MiniLM-L6-v2` | Small and fast; runs on a laptop CPU |

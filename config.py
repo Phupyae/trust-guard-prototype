@@ -27,6 +27,10 @@ def _secret(name: str, default: str = "") -> str:
 ANTHROPIC_API_KEY = _secret("ANTHROPIC_API_KEY")
 LLM_PROVIDER = _secret("LLM_PROVIDER", "claude").lower()
 CLAUDE_MODEL = _secret("CLAUDE_MODEL", "claude-haiku-5-5")
+GEMINI_API_KEY = _secret("GEMINI_API_KEY")
+# Flash-Lite: the free tier's daily request allowance is much higher for Flash-Lite
+# than for Flash, and one verification uses ~3-4 requests.
+GEMINI_MODEL = _secret("GEMINI_MODEL", "gemini-3.5-flash-lite")
 EMBEDDING_MODEL = _secret("EMBEDDING_MODEL", "sentence-transformers/all-MiniLM-L6-v2")
 
 # --- Retrieval ---

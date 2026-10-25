@@ -114,6 +114,35 @@ def test_demo_scenario_end_to_end(retriever):
     assert report.overall[0] == "error"
 
 
+def test_gemini_client_parses_json_and_maps_errors(monkeypatch):
+    """Checks our Gemini wrapper without network: the SDK call is replaced by a fake."""
+    from modules.llm_client import GeminiClient, LLMError
+    from google.genai import errors
+
+    client = GeminiClient(api_key="test-key", model="test-model")
+    captured = {}
+
+    class FakeResponse:
+        text = '{"claims": [{"claim": "Employees may claim up to $150 per day."}]}'
+
+    def fake_generate(model, contents, config):
+        captured["schema"] = config.response_json_schema
+        captured["mime"] = config.response_mime_type
+        return FakeResponse()
+
+    monkeypatch.setattr(client.client.models, "generate_content", fake_generate)
+    out = client.structured("sys", "user", "record_claims", {"type": "object"})
+    assert out["claims"][0]["claim"].startswith("Employees")
+    assert captured == {"schema": {"type": "object"}, "mime": "application/json"}
+
+    def bad_key(model, contents, config):
+        raise errors.ClientError(403, {"error": {"message": "API key not valid", "status": "PERMISSION_DENIED"}})
+
+    monkeypatch.setattr(client.client.models, "generate_content", bad_key)
+    with pytest.raises(LLMError, match="rejected"):
+        client.structured("sys", "user", "record_claims", {"type": "object"})
+
+
 def test_empty_answer_rejected(retriever):
     with pytest.raises(InputError):
         run_pipeline("q", "   ", retriever, MockClient())
