@@ -49,18 +49,52 @@ st.markdown("""
 :root {
   --ink:#14233A; --ink-2:#44546A; --ink-3:#66758A; --rule:#CBD3DE; --desk:#EEF1F5;
   --ok:#17663F; --ok-bg:#E3F2EA; --bad:#A8201A; --bad-bg:#FBE9E7;
-  --unk:#7A5200; --unk-bg:#FFF3D6; --rev:#5B2A86; --rev-bg:#F1EAF8; --neutral:#44546A; --neutral-bg:#EEF1F5;
+  --unk:#7A5200; --unk-bg:#FFF3D6; --rev:#3F4A5C; --rev-bg:#E6E9EF;
+  --navy:#1B2F7A; --royal:#2346A8; --violet:#7B5CE6; --lav:#EEF0FB; --lav-2:#D9DEF6; --neutral:#44546A; --neutral-bg:#EEF1F5;
 }
 html, body, .stApp, .stMarkdown, input, textarea, button, label, [data-testid="stSidebar"] {
   font-family:'Public Sans', system-ui, sans-serif !important;
 }
 /* Clear Streamlit's fixed toolbar so nothing at the top of the page is hidden under it */
 .block-container {padding-top:4.5rem; max-width:1080px;}
+.stApp {background:#F7F8FE;}
+a, a:visited {color:var(--violet);}
+*:focus-visible {outline:3px solid var(--violet) !important; outline-offset:2px;}
+
+/* Header band */
+.tg-hero {background:var(--royal); color:#fff; border-radius:14px; padding:1.5rem 1.8rem 1.4rem;
+  border-bottom:5px solid var(--violet); margin-bottom:1.2rem;}
+.tg-hero h1 {color:#fff !important; font-size:2.1rem; font-weight:700; margin:0 0 0.4rem 0; padding:0;
+  display:flex; align-items:center; gap:0.6rem;}
+.tg-hero p {color:#E4E8FB; font-size:1.02rem; max-width:68ch; margin:0;}
+.tg-hero .tg-pill {display:inline-block; background:rgba(255,255,255,0.14); color:#fff; border-radius:999px;
+  padding:0.15rem 0.7rem; font-size:0.8rem; font-weight:600; margin-top:0.8rem; margin-right:0.4rem;}
+
+/* Sidebar in royal navy */
+[data-testid="stSidebar"] {background:var(--navy);}
+[data-testid="stSidebar"] h3, [data-testid="stSidebar"] p, [data-testid="stSidebar"] li,
+[data-testid="stSidebar"] strong, [data-testid="stSidebar"] .tg-kb, [data-testid="stSidebar"] .tg-kb .t {color:#fff;}
+[data-testid="stSidebar"] .tg-kb small, [data-testid="stSidebar"] [data-testid="stCaptionContainer"] p {color:#C3CBEF;}
+[data-testid="stSidebar"] h3 {border-bottom:2px solid var(--violet); padding-bottom:0.3rem;}
+[data-testid="stSidebar"] [data-testid="stAlertContainer"] {background:#FFF3D6 !important; border-radius:8px;}
+[data-testid="stSidebar"] [data-testid="stAlertContainer"] p {color:#7A5200 !important;}
+[data-testid="stSidebar"] button svg {fill:#fff; color:#fff;}
+
+/* Lavender panels for the input steps; inputs stay white so they stand out */
+.stApp .st-key-panel_input, .stApp .st-key-panel_verify {background:var(--lav); border-color:var(--lav-2) !important;}
+.st-key-panel_input input, .st-key-panel_input textarea,
+.st-key-panel_input [data-baseweb="select"] > div {background:#fff !important;}
+.stButton button[kind="secondary"] {border-color:var(--royal); color:var(--royal); background:#fff;}
+.stButton button[kind="secondary"]:hover {background:var(--lav-2); color:var(--navy); border-color:var(--navy);}
+.stButton button[kind="primary"] {background:var(--royal); border-color:var(--royal);}
+.stButton button[kind="primary"]:hover {background:var(--navy); border-color:var(--navy);}
+/* Claim cards: white on the tinted page */
+[class*="st-key-card_"] {background:#fff;}
 h1, h2, h3 {color:var(--ink); letter-spacing:-0.01em;}
 .tg-lede {color:var(--ink-2); font-size:1.02rem; max-width:68ch; margin:-0.4rem 0 1.2rem 0;}
-.tg-step {font-weight:600; font-size:1.1rem; color:var(--ink); margin:1.4rem 0 0.2rem 0;}
+.tg-step {font-weight:600; font-size:1.1rem; color:var(--navy); margin:0.3rem 0 0.2rem 0;}
 .tg-step span {display:inline-block; width:1.6rem; height:1.6rem; line-height:1.6rem; text-align:center;
-  border-radius:50%; background:var(--ink); color:#fff; font-size:0.85rem; margin-right:0.5rem;}
+  border-radius:50%; background:var(--violet); color:#fff; font-size:0.85rem; margin-right:0.5rem;}
 .tg-help {color:var(--ink-3); font-size:0.88rem; margin:0 0 0.6rem 0; max-width:72ch;}
 
 .tg-chip {display:inline-flex; align-items:center; gap:0.35rem; padding:0.18rem 0.6rem; border-radius:6px;
@@ -76,7 +110,7 @@ h1, h2, h3 {color:var(--ink); letter-spacing:-0.01em;}
 .tg-verdict .msg {color:var(--ink); font-weight:600; font-size:1.05rem;}
 .tg-verdict .counts {display:flex; flex-wrap:wrap; gap:0.4rem; margin-top:0.55rem;}
 
-.tg-legend {display:flex; flex-wrap:wrap; gap:0.5rem 1.2rem; color:var(--ink-2); font-size:0.85rem; margin:0.2rem 0 0.8rem 0;}
+.tg-legend {background:#fff; border:1px solid var(--lav-2); border-radius:8px; padding:0.6rem 0.9rem; display:flex; flex-wrap:wrap; gap:0.5rem 1.2rem; color:var(--ink-2); font-size:0.85rem; margin:0.2rem 0 0.8rem 0;}
 .tg-legend div {display:flex; gap:0.45rem; align-items:center;}
 
 .tg-card {border-left:5px solid currentColor; padding:0.2rem 0 0.1rem 1rem;}
@@ -86,13 +120,14 @@ h1, h2, h3 {color:var(--ink); letter-spacing:-0.01em;}
 .tg-col-label {color:var(--ink-3); font-size:0.82rem; font-weight:600; margin-bottom:0.3rem;}
 .tg-doc {font-family:'Source Serif 4', Georgia, serif; font-size:1.06rem; line-height:1.55; color:var(--ink);
   background:#fff; border:1px solid var(--rule); border-radius:6px; padding:0.7rem 0.85rem;}
-.tg-doc.empty {font-family:'Public Sans', system-ui, sans-serif; color:var(--ink-3); font-size:0.92rem; background:var(--desk);}
+.tg-doc.empty {font-family:'Public Sans', system-ui, sans-serif; color:var(--ink-3); font-size:0.92rem; background:var(--lav);}
+.tg-col-label.policy {color:var(--royal);}
 .tg-source {color:var(--ink-2); font-size:0.82rem; margin-top:0.35rem;}
 .tg-why {color:var(--ink); margin:0.8rem 0 0.2rem 0; max-width:80ch;}
 .tg-why strong {color:var(--ink-2);}
 @media (max-width:720px) {.tg-compare {grid-template-columns:1fr;} .block-container {padding-top:4rem;}}
 
-.tg-mock {background:var(--rev); color:#fff; padding:0.7rem 1rem; border-radius:8px; font-weight:600; margin-bottom:0.8rem;}
+.tg-mock {background:#3F4A5C; color:#fff; padding:0.7rem 1rem; border-radius:8px; font-weight:600; margin-bottom:0.8rem;}
 .tg-stale {background:var(--desk); border:1px dashed var(--ink-3); color:var(--ink-2); padding:0.6rem 0.9rem;
   border-radius:8px; font-size:0.92rem; margin:0.4rem 0;}
 .tg-kb {font-size:0.86rem; margin-bottom:0.6rem; color:var(--ink);}
@@ -107,10 +142,12 @@ def chip(status: str, text: str | None = None) -> str:
 
 
 # ---------- header first, so the page is never blank while loading (Feedback) ----------
-st.title("🛡️ TrustGuard AI")
-st.markdown('<p class="tg-lede">Check an AI assistant\'s answer against approved bank policy, one claim at a '
-            'time. TrustGuard shows what the policy supports, contradicts, or cannot confirm. It does not '
-            'guarantee that an answer is correct.</p>', unsafe_allow_html=True)
+st.markdown('<div class="tg-hero"><h1><span aria-hidden="true">🛡️</span>TrustGuard AI</h1>'
+            '<p>Check an AI assistant\'s answer against approved bank policy, one claim at a time. TrustGuard '
+            'shows what the policy supports, contradicts, or cannot confirm. It does not guarantee that an '
+            'answer is correct.</p>'
+            '<span class="tg-pill">Claim-by-claim checks</span><span class="tg-pill">Cited policy evidence</span>'
+            '<span class="tg-pill">Fictional demo data</span></div>', unsafe_allow_html=True)
 
 
 # ---------- cached resources (loaded once per server, not per click) ----------
@@ -164,7 +201,7 @@ with st.sidebar:
         in_use = doc["status"] in config.SEARCHABLE_STATUSES
         tag = (chip(SUPPORTED, "In use") if in_use
                else '<span class="tg-chip tg-neutral"><b aria-hidden="true">–</b>Superseded, not searched</span>')
-        st.markdown(f'<div class="tg-kb">{tag}<br><b>{html.escape(doc["title"])}</b><br>'
+        st.markdown(f'<div class="tg-kb">{tag}<br><b class="t">{html.escape(doc["title"])}</b><br>'
                     f'<small>Version {doc["version"]}, effective {doc["effective_date"]}</small></div>',
                     unsafe_allow_html=True)
     st.caption("All policies are fictional and used for demonstration only. No real OCBC data is used.")
@@ -190,25 +227,27 @@ def clear_all():
     st.session_state.pop("report", None)
 
 
-st.markdown('<div class="tg-step"><span>1</span>Enter the question and the AI\'s answer</div>', unsafe_allow_html=True)
-st.markdown('<p class="tg-help">Pick a prepared example to fill both boxes, or write your own. '
-            'Choosing an example only fills the boxes; nothing runs until you press Verify answer.</p>',
-            unsafe_allow_html=True)
-st.selectbox("Example", labels, key="example", on_change=load_example)
-st.text_input("Question the employee asked the AI assistant", key="question",
-              placeholder="What are the reimbursement rules for overseas business travel?",
-              help="Gives TrustGuard context, e.g. what 'it' or 'they' refer to in the answer.")
-st.text_area("The AI assistant's answer", key="answer", height=110,
-             placeholder="Paste the answer exactly as the AI assistant gave it.",
-             help="Up to 4,000 characters. Each factual statement in it is checked separately.")
+with st.container(border=True, key="panel_input"):
+    st.markdown('<div class="tg-step"><span>1</span>Enter the question and the AI\'s answer</div>', unsafe_allow_html=True)
+    st.markdown('<p class="tg-help">Pick a prepared example to fill both boxes, or write your own. '
+                'Choosing an example only fills the boxes; nothing runs until you press Verify answer.</p>',
+                unsafe_allow_html=True)
+    st.selectbox("Example", labels, key="example", on_change=load_example)
+    st.text_input("Question the employee asked the AI assistant", key="question",
+                  placeholder="What are the reimbursement rules for overseas business travel?",
+                  help="Gives TrustGuard context, e.g. what 'it' or 'they' refer to in the answer.")
+    st.text_area("The AI assistant's answer", key="answer", height=110,
+                 placeholder="Paste the answer exactly as the AI assistant gave it.",
+                 help="Up to 4,000 characters. Each factual statement in it is checked separately.")
 
 # ---------- step 2: verify ----------
-st.markdown('<div class="tg-step"><span>2</span>Verify the answer</div>', unsafe_allow_html=True)
-st.markdown('<p class="tg-help">TrustGuard splits the answer into claims, finds the matching policy sections, '
-            'and checks each claim. This usually takes 5–15 seconds.</p>', unsafe_allow_html=True)
-b1, b2, _ = st.columns([1.3, 1, 4])
-run = b1.button("Verify answer", type="primary", disabled=llm is None, use_container_width=True)
-b2.button("Clear", on_click=clear_all, use_container_width=True)
+with st.container(border=True, key="panel_verify"):
+    st.markdown('<div class="tg-step"><span>2</span>Verify the answer</div>', unsafe_allow_html=True)
+    st.markdown('<p class="tg-help">TrustGuard splits the answer into claims, finds the matching policy sections, '
+                'and checks each claim. This usually takes 5–15 seconds.</p>', unsafe_allow_html=True)
+    b1, b2, _ = st.columns([1.3, 1, 4])
+    run = b1.button("Verify answer", type="primary", disabled=llm is None, use_container_width=True)
+    b2.button("Clear", on_click=clear_all, use_container_width=True)
 
 if run:
     try:
@@ -245,7 +284,7 @@ if run:
 
 # ---------- step 3: results ----------
 report: Report | None = st.session_state.get("report")
-st.markdown('<div class="tg-step"><span>3</span>Read the findings</div>', unsafe_allow_html=True)
+st.markdown('<div class="tg-step" style="margin-top:1.6rem"><span>3</span>Read the findings</div>', unsafe_allow_html=True)
 
 if not report:
     st.markdown('<p class="tg-help">Results appear here after you press Verify answer: an overall verdict, '
@@ -291,13 +330,13 @@ else:
                         f'section {r.section} {html.escape(r.section_title)}</div>')
         else:
             evidence = '<div class="tg-doc empty">No approved policy section addresses this claim.</div>'
-        with st.container(border=True):
+        with st.container(border=True, key=f"card_{r.claim_id}"):
             st.markdown(
                 f'<div class="tg-card tg-{s["key"]}" style="background:transparent">'
                 f'<div class="tg-card-head">{chip(r.status)}<span class="tg-claimno">Claim {r.claim_id}</span>{review}</div>'
                 f'<div class="tg-compare">'
                 f'<div><div class="tg-col-label">The AI answer says</div><div class="tg-doc">{html.escape(r.claim)}</div></div>'
-                f'<div><div class="tg-col-label">The approved policy says</div>{evidence}</div>'
+                f'<div><div class="tg-col-label policy">The approved policy says</div>{evidence}</div>'
                 f'</div>'
                 f'<div class="tg-why"><strong>Why: </strong>{html.escape(r.explanation)}</div></div>',
                 unsafe_allow_html=True)
