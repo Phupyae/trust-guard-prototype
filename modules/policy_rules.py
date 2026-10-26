@@ -72,6 +72,41 @@ def numeric_check(claim: str, evidence: str) -> tuple[str, str]:
     return "n/a", ""
 
 
+# --- Extraction checks (guarding the claim-extraction AI) --------------------
+# Claim extraction is also an AI writing text, so it can change, add or drop facts.
+# We can't check meaning cheaply, but we CAN check numbers exactly: extraction
+# should only split and reword the answer, never introduce or lose a number.
+
+def numbers_in(text: str) -> set[float]:
+    """Every number in the text, normalised ('$1,500' -> 1500.0)."""
+    return {float(n.replace(",", "")) for n in re.findall(r"\d[\d,]*(?:\.\d+)?", text)}
+
+
+def _fmt(n: float) -> str:
+    return f"{n:,.0f}" if n == int(n) else f"{n:g}"
+
+
+def extraction_check(claim: str, answer: str) -> list[str]:
+    """Numbers in the claim that are NOT in the original answer = the extractor
+    changed or invented a fact. The verdict would then be about the wrong claim."""
+    invented = sorted(numbers_in(claim) - numbers_in(answer))
+    if not invented:
+        return []
+    return [f"Extraction check: the number(s) {', '.join(_fmt(n) for n in invented)} in this claim "
+            "do not appear in the original answer. The claim may have been altered during extraction."]
+
+
+def coverage_check(claims: list[str], answer: str) -> list[str]:
+    """Numbers in the answer that NO claim contains = a fact may have been dropped
+    and never verified. This is report-level, because the lost fact has no claim card."""
+    covered = set().union(*(numbers_in(c) for c in claims)) if claims else set()
+    missing = sorted(numbers_in(answer) - covered)
+    if not missing:
+        return []
+    return [f"Coverage check: the answer mentions {', '.join(_fmt(n) for n in missing)}, "
+            "but no extracted claim contains it, so that part of the answer may not have been verified."]
+
+
 # --- Requirement check -------------------------------------------------------
 
 _NO_REQUIREMENT = {

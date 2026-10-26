@@ -8,6 +8,7 @@ from dataclasses import dataclass, field
 
 from modules.claim_extractor import extract_claims
 from modules.claim_verifier import verify_claims
+from modules.policy_rules import coverage_check
 from modules.schemas import CONTRADICTED, INSUFFICIENT_EVIDENCE, SUPPORTED
 
 MAX_ANSWER_CHARS = 4000
@@ -23,6 +24,7 @@ class Report:
     answer: str
     results: list = field(default_factory=list)
     timings: dict = field(default_factory=dict)
+    coverage_warnings: list = field(default_factory=list)  # facts that may have been dropped
 
     @property
     def counts(self) -> dict:
@@ -33,7 +35,7 @@ class Report:
 
     @property
     def needs_review(self) -> bool:
-        return any(r.needs_review for r in self.results)
+        return bool(self.coverage_warnings) or any(r.needs_review for r in self.results)
 
     @property
     def overall(self) -> tuple[str, str]:
@@ -46,12 +48,15 @@ class Report:
             return "error", f"Do not rely on this answer: {c[CONTRADICTED]} claim(s) conflict with approved policy."
         if c[INSUFFICIENT_EVIDENCE]:
             return "warning", f"Use with caution: {c[INSUFFICIENT_EVIDENCE]} claim(s) could not be verified."
+        if self.coverage_warnings:
+            return "warning", "Use with caution: every extracted claim is supported, but part of the answer may not have been checked."
         return "success", "All claims are supported by approved policy evidence."
 
     def to_dict(self) -> dict:
         level, message = self.overall
         return {"question": self.question, "answer": self.answer, "overall": level,
                 "overall_message": message, "counts": self.counts, "needs_review": self.needs_review,
+                "coverage_warnings": self.coverage_warnings,
                 "results": [r.to_dict() for r in self.results], "timings": self.timings}
 
 
@@ -71,6 +76,7 @@ def run_pipeline(question: str, answer: str, retriever, llm) -> Report:
     report = Report(question=question, answer=answer)
     t0 = time.perf_counter()
     claims = extract_claims(question, answer, llm)
+    report.coverage_warnings = coverage_check([c.claim for c in claims], answer)
     t1 = time.perf_counter()
     report.results = verify_claims(claims, question, retriever, llm) if claims else []
     t2 = time.perf_counter()

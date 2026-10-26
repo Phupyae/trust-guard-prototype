@@ -143,6 +143,36 @@ def test_gemini_client_parses_json_and_maps_errors(monkeypatch):
         client.structured("sys", "user", "record_claims", {"type": "object"})
 
 
+# --- extraction guard ---
+def test_extraction_check_numbers():
+    answer = "Employees can claim up to $1,500 per trip. Claims are due within 30 days."
+    assert policy_rules.extraction_check("Employees can claim up to $1,500 per trip.", answer) == []
+    assert policy_rules.extraction_check("Employees can claim up to $150 per trip.", answer)  # altered
+    assert policy_rules.coverage_check(["Employees can claim up to $1,500 per trip."], answer)  # 30 dropped
+    assert policy_rules.coverage_check(["up to $1,500 per trip", "due within 30 days"], answer) == []
+
+
+class AlteringExtractor:
+    """Simulates an extractor that 'corrects' $200 to $150 and drops the deadline,
+    while the judge happily agrees with the altered claim."""
+    def structured(self, system, user, tool_name, schema, context=None, max_tokens=0):
+        if tool_name == "record_claims":
+            return {"claims": [{"claim": "Employees can claim up to $150 per day for overseas travel."}]}
+        return {"status": SUPPORTED, "evidence_passage": 1, "explanation": "Matches the policy.",
+                "evidence_quote": "Employees may claim up to $150 per day for eligible overseas business travel expenses."}
+
+
+def test_altered_claim_cannot_be_supported(retriever):
+    report = run_pipeline("What is the travel allowance?",
+                          "You can claim up to $200 per day. Submit within 30 days.",
+                          retriever, AlteringExtractor())
+    r = report.results[0]
+    assert r.status == INSUFFICIENT_EVIDENCE and r.needs_review
+    assert any("Extraction check" in c and "150" in c for c in r.rule_checks)
+    assert report.coverage_warnings and "200" in report.coverage_warnings[0]
+    assert report.overall[0] != "success"
+
+
 def test_empty_answer_rejected(retriever):
     with pytest.raises(InputError):
         run_pipeline("q", "   ", retriever, MockClient())

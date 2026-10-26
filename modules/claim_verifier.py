@@ -134,12 +134,27 @@ def verify_claim(claim: Claim, question: str, evidence: list[Evidence], relevant
         needs_review=needs_review)
 
 
+def apply_extraction_warnings(result: VerificationResult, claim: Claim) -> VerificationResult:
+    """If the extractor may have altered this claim, the verdict is about a sentence
+    the employee never saw. Same principle as the other rules: only ever more cautious."""
+    if not claim.extraction_warnings:
+        return result
+    result.needs_review = True
+    result.rule_checks = [f"⚠ {w}" for w in claim.extraction_warnings] + result.rule_checks
+    if result.status == SUPPORTED:
+        result.status = INSUFFICIENT_EVIDENCE
+        result.explanation += (" However, this claim may not match what the original answer said, "
+                               "so it cannot be confirmed.")
+    return result
+
+
 def verify_claims(claims, question, retriever, llm, max_workers: int = 4) -> list[VerificationResult]:
     """Claims are independent, so we verify them in parallel — a 3-claim answer
     takes about as long as a 1-claim answer."""
     def one(claim):
         evidence = retriever.search(claim.claim)
-        return verify_claim(claim, question, evidence, retriever.relevant(evidence), llm)
+        result = verify_claim(claim, question, evidence, retriever.relevant(evidence), llm)
+        return apply_extraction_warnings(result, claim)
 
     with ThreadPoolExecutor(max_workers=max_workers) as pool:
         return list(pool.map(one, claims))

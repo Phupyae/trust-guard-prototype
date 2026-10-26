@@ -18,6 +18,7 @@ from modules.document_loader import load_knowledge_base, load_metadata
 from modules.evidence_retriever import EvidenceRetriever, make_embedder
 from modules.llm_client import LLMError, get_client
 from modules.pipeline import InputError, Report, validate_inputs
+from modules.policy_rules import coverage_check
 from modules.schemas import CONTRADICTED, INSUFFICIENT_EVIDENCE, SUPPORTED
 
 st.set_page_config(page_title="TrustGuard AI", page_icon="🛡️", layout="wide")
@@ -132,6 +133,7 @@ if run:
             st.write("**1. Extracting factual claims…**")
             t0 = time.perf_counter()
             claims = extract_claims(question, answer, llm)
+            report.coverage_warnings = coverage_check([c.claim for c in claims], answer)
             t1 = time.perf_counter()
             st.write(f"→ {len(claims)} claim(s) found in {t1 - t0:.1f}s")
             if claims:
@@ -167,9 +169,11 @@ if report:
     m2.metric("Supported", c[SUPPORTED])
     m3.metric("Contradicted", c[CONTRADICTED])
     m4.metric("Insufficient evidence", c[INSUFFICIENT_EVIDENCE])
+    for warning in report.coverage_warnings:
+        st.warning(f"⚠ {warning}")
     if report.needs_review:
-        st.info("🔍 One or more findings are flagged for human review: the AI judgement and the "
-                "automated rule checks did not fully agree.")
+        st.info("🔍 One or more findings are flagged for human review: an automated check "
+                "disagreed with the AI's work. Open \"How this was checked\" for details.")
 
     with st.expander("Original AI answer", expanded=False):
         st.markdown(f"**Q:** {report.question}\n\n**A:** {report.answer}")

@@ -31,6 +31,8 @@ class Chunk:
 class Claim:
     claim_id: int
     claim: str
+    # Filled by the extraction check: problems with how the AI rewrote the answer
+    extraction_warnings: list[str] = field(default_factory=list)
 
 
 @dataclass

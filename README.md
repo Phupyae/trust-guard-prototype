@@ -29,7 +29,7 @@ The first run downloads the embedding model (~90 MB) from Hugging Face. After th
 | Command | What it does |
 |---|---|
 | `streamlit run app.py` | The demo dashboard |
-| `pytest -q` | 13 offline tests (no API key needed) |
+| `pytest -q` | 15 offline tests (no API key needed) |
 | `python tests/run_eval.py` | Runs every labelled case through the **real** pipeline and prints accuracy |
 | `python scripts/inspect_retrieval.py` | Shows retrieval scores so you can tune the relevance threshold |
 | `python scripts/build_pdfs.py` | Rebuilds the policy PDFs after editing `knowledge_base/source/*.md` |
@@ -64,7 +64,7 @@ Employee question + AI answer
 | `modules/llm_client.py` | One interface for "ask the LLM, get JSON back" | Uses a **forced tool call** with a JSON schema, so the reply can't contain broken JSON. Swapping provider means changing one class. |
 | `modules/evidence_retriever.py` | Finds the top-3 most relevant sections per claim | Embeddings match **meaning** rather than words. There's no vector DB because 30 sections take microseconds to search. **Superseded** documents are excluded from search. Falls back to TF-IDF if the model can't load. |
 | `modules/claim_verifier.py` | LLM judgement and rule checks → final status | If nothing relevant is retrieved, the result is INSUFFICIENT_EVIDENCE **without calling the LLM**, so it can't "find" support in unrelated text. |
-| `modules/policy_rules.py` | Deterministic checks | Numbers and units, "not required" vs "required", and whether the quote really exists in the source. Rules **never upgrade** a verdict; a disagreement downgrades it and flags it for human review. |
+| `modules/policy_rules.py` | Deterministic checks | Numbers and units, "not required" vs "required", whether the quote really exists in the source, and two **extraction checks** that guard the extractor AI (a claim must not contain numbers the answer never said; every number in the answer must appear in some claim). Rules **never upgrade** a verdict; a disagreement downgrades it and flags it for human review. |
 | `modules/pipeline.py` | Glue and the overall verdict | The most severe claim decides the headline, because one wrong fact makes an answer unsafe to act on. |
 | `app.py` | Streamlit UI | Shows each pipeline stage live. Never shows a raw traceback. |
 

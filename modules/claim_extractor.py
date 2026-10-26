@@ -10,6 +10,7 @@ approved automatically" can't be searched — "they" has no meaning. So the prom
 asks the model to resolve pronouns using the employee's question.
 """
 import config
+from modules import policy_rules
 from modules.schemas import Claim
 
 SYSTEM = """You are the claim-extraction stage of a verification system used by bank employees.
@@ -46,4 +47,6 @@ def extract_claims(question: str, answer: str, llm) -> list[Claim]:
     result = llm.structured(SYSTEM, user, "record_claims", SCHEMA,
                             context={"question": question, "answer": answer})
     texts = [c["claim"].strip() for c in result.get("claims", []) if c.get("claim", "").strip()]
-    return [Claim(claim_id=i + 1, claim=t) for i, t in enumerate(texts[: config.MAX_CLAIMS])]
+    # Guard the extractor: every claim is checked against the original answer.
+    return [Claim(claim_id=i + 1, claim=t, extraction_warnings=policy_rules.extraction_check(t, answer))
+            for i, t in enumerate(texts[: config.MAX_CLAIMS])]
