@@ -95,7 +95,7 @@ def main() -> int:
             "source_file": f"source/{src.name}",
         })
         print(f"built {pdf_name}")
-    (OUT_DIR / "policy_metadata.json").write_text(json.dumps({"documents": records}, indent=2))
+    (OUT_DIR / "policy_metadata.json").write_text(json.dumps({"documents": records}, indent=2), encoding="utf-8")
     print("wrote policy_metadata.json")
     return 0
 

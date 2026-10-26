@@ -27,6 +27,11 @@ Choose exactly one status:
 - CONTRADICTED: a passage states something incompatible with the claim, e.g. a different amount or deadline, or the claim says a step is not needed when the passage requires it.
 - INSUFFICIENT_EVIDENCE: no passage addresses the claim, or the passages only partially cover it, so it can be neither confirmed nor refuted.
 
+Read ALL passages together before deciding:
+- If any passage states the claim, it is SUPPORTED, even if another passage adds further conditions, exceptions or extra steps that the claim does not mention. A claim that leaves out detail is not wrong.
+  Example: "All claims require manager approval" is SUPPORTED by "All claims require manager approval", even if another passage adds that claims above $2,000 also need Department Head approval.
+- Only choose CONTRADICTED when a passage makes the claim's own statement false (a different number, a different deadline, or something required that the claim says is not required). Never choose CONTRADICTED just because the policy contains more detail than the claim.
+
 When unsure between SUPPORTED and INSUFFICIENT_EVIDENCE, choose INSUFFICIENT_EVIDENCE: wrongly approving a claim is the costlier mistake.
 
 Also return:

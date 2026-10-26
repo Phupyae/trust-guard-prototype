@@ -23,7 +23,7 @@ BOLD_FLAG = 16  # PyMuPDF span flag bit for bold text
 
 
 def load_metadata(path: Path = config.METADATA_FILE) -> list[dict]:
-    return json.loads(path.read_text())["documents"]
+    return json.loads(path.read_text(encoding="utf-8"))["documents"]
 
 
 def _pdf_lines(pdf_path: Path) -> list[tuple[str, bool]]:

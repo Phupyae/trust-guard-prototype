@@ -25,7 +25,7 @@ def main() -> int:
     parser.add_argument("--tfidf", action="store_true", help="use the TF-IDF fallback retriever")
     args = parser.parse_args()
 
-    cases = json.loads((Path(__file__).parent / "test_cases.json").read_text())["cases"]
+    cases = json.loads((Path(__file__).parent / "test_cases.json").read_text(encoding="utf-8"))["cases"]
     embedder, warning = make_embedder("tfidf" if args.tfidf else "sentence-transformers")
     if warning:
         print("WARNING:", warning)

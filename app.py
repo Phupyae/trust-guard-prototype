@@ -128,7 +128,7 @@ def get_llm():
 
 @st.cache_data
 def demo_cases():
-    with open(config.ROOT / "tests" / "test_cases.json") as f:
+    with open(config.ROOT / "tests" / "test_cases.json", encoding="utf-8") as f:
         return json.load(f)["cases"]
 
 
