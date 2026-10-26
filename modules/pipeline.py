@@ -18,6 +18,10 @@ class InputError(ValueError):
     pass
 
 
+def _n(count: int) -> str:
+    return f"{count} claim" if count == 1 else f"{count} claims"
+
+
 @dataclass
 class Report:
     question: str
@@ -45,9 +49,9 @@ class Report:
         if not self.results:
             return "info", "No checkable factual claims were found in this answer."
         if c[CONTRADICTED]:
-            return "error", f"Do not rely on this answer: {c[CONTRADICTED]} claim(s) conflict with approved policy."
+            return "error", f"Do not rely on this answer: {_n(c[CONTRADICTED])} {'conflicts' if c[CONTRADICTED] == 1 else 'conflict'} with approved policy."
         if c[INSUFFICIENT_EVIDENCE]:
-            return "warning", f"Use with caution: {c[INSUFFICIENT_EVIDENCE]} claim(s) could not be verified."
+            return "warning", f"Use with caution: {_n(c[INSUFFICIENT_EVIDENCE])} could not be verified against approved policy."
         if self.coverage_warnings:
             return "warning", "Use with caution: every extracted claim is supported, but part of the answer may not have been checked."
         return "success", "All claims are supported by approved policy evidence."

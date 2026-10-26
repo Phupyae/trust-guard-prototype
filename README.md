@@ -87,6 +87,17 @@ Source files live in `knowledge_base/source/*.md` and are published as PDFs, mir
 
 ---
 
+## Interface design
+The dashboard (`app.py`) is built around five usability principles:
+
+| Principle | How the interface applies it |
+|---|---|
+| Perceivability | Every status is an icon, a word and a colour (never colour alone). Each claim sits side by side with the policy text it was checked against, so a contradiction is visible at a glance. Policy text is set in a serif face, so document text always looks different from interface text. |
+| Predictability | Numbered steps (1 Enter, 2 Verify, 3 Read) in the order things happen. Choosing an example only fills the boxes; nothing runs until **Verify answer** is pressed. |
+| Learnability | Plain-language help under each step and on each input, plus a status key next to the findings. |
+| Feedback | Loading message while the model starts, live progress (claims found, then checking), a completion toast, a notice when the inputs no longer match the results, and errors that say what to do. |
+| Consistency | One status vocabulary (✓ Supported, ✕ Contradicted, ? Insufficient evidence, ! Needs review) used in the verdict, the key, the cards and the sidebar. |
+
 ## Honest limitations (say these before the judges do)
 - A **SUPPORTED** claim is supported by the *available approved evidence*. That is not a guarantee of truth.
 - The rules are deliberately simple and catch common, high-impact errors only: amounts, durations, approval and receipts.
