@@ -1,0 +1,19 @@
+{
+  "_note": "Example questions for the two-agent demo. Only the question is prepared; Agent 1 writes the answer live, so results can differ between runs. 'why' says what each question tests.",
+  "questions": [
+    {"label": "Daily allowance and approval", "question": "How much can I claim per day for an overseas business trip, and does my claim need approval?",
+     "why": "v1 and v2 disagree ($120 + auto-approval vs $150 + manager approval). An assistant with a stale index may mix them."},
+    {"label": "Hotel limit and claim deadline", "question": "What is the hotel limit and the deadline for submitting an overseas travel claim?",
+     "why": "v1 says $200/night and 60 days; current v2 says $250/night and 30 days."},
+    {"label": "Receipts", "question": "Do I need receipts for my travel expenses?",
+     "why": "Covered by v2 5.2 and SOP 3.2. Usually answered correctly."},
+    {"label": "Finance processing time", "question": "How long does Finance take to process an approved expense claim, and when will I be paid?",
+     "why": "SOP steps 4-5. Usually answered correctly."},
+    {"label": "Business class flights", "question": "Can I fly business class on a 10-hour flight to London?",
+     "why": "Conditional rule (v2 4.4): allowed for 8h+ flights with prior Department Head approval."},
+    {"label": "Laundry on a short trip", "question": "Can I claim laundry costs on a 3-day business trip?",
+     "why": "Not reimbursable for trips shorter than 5 days (v2 section 6)."},
+    {"label": "Maternity leave (not covered)", "question": "How much paid maternity leave do employees get?",
+     "why": "No document covers this. Expect the assistant to decline, or TrustGuard to return Insufficient evidence."}
+  ]
+}

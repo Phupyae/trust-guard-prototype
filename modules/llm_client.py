@@ -135,6 +135,13 @@ class MockClient:
             return {"claims": [{"claim": s.strip()} for s in sentences if len(s.split()) >= 3]}
         if tool_name == "record_verdict":
             return self._verdict(context["claim"], context["passages"])
+        if tool_name == "record_answer":
+            # Agent 1 stand-in: repeat the first sentence of the top two passages.
+            passages = context.get("passages", [])
+            if not passages:
+                return {"answer": "I could not find this in the documents available to me.", "passages_used": []}
+            firsts = [re.split(r"(?<=[.!?])\s+", p)[0] for p in passages[:2]]
+            return {"answer": "[mock] " + " ".join(firsts), "passages_used": [1, 2][:len(firsts)]}
         raise LLMError(f"Mock has no handler for {tool_name}")
 
     @staticmethod
@@ -160,11 +167,13 @@ class MockClient:
                 "evidence_quote": "", "explanation": "[mock] No passage addresses this claim."}
 
 
-def get_client(provider: str = config.LLM_PROVIDER):
+def get_client(provider: str = config.LLM_PROVIDER, model: str | None = None):
+    """model=None uses the provider's default from .env. Agent 1 passes its own
+    AGENT1_MODEL here so the assistant and the verifier can run on different models."""
     if provider == "mock":
         return MockClient()
     if provider == "claude":
-        return ClaudeClient()
+        return ClaudeClient(model=model or config.CLAUDE_MODEL)
     if provider == "gemini":
-        return GeminiClient()
+        return GeminiClient(model=model or config.GEMINI_MODEL)
     raise LLMError(f"Unknown LLM_PROVIDER '{provider}'. Use 'claude', 'gemini' or 'mock'.")

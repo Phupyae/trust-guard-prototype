@@ -3,7 +3,9 @@
 **OCBC Ignite Innovation Challenge 2026 · Problem Statement 1: Trusted AI Agents**
 Team: Abby, Maria & Phu
 
-TrustGuard checks an AI assistant's answer against approved policy documents, **one factual claim at a time**, and labels each claim **SUPPORTED**, **CONTRADICTED** or **INSUFFICIENT_EVIDENCE**, with the exact evidence and section it relied on.
+**Two agents.** An employee asks a question. **Agent 1, the Banking AI Assistant**, writes an answer. **Agent 2, TrustGuard**, intercepts that answer before the employee sees it and checks it against approved policy documents. The employee gets the answer together with the verdict and evidence.
+
+TrustGuard checks the assistant's answer against approved policy documents, **one factual claim at a time**, and labels each claim **SUPPORTED**, **CONTRADICTED** or **INSUFFICIENT_EVIDENCE**, with the exact evidence and section it relied on.
 
 > All policy documents are fictional ("Northbridge Bank"). No real OCBC data is used.
 
@@ -29,7 +31,7 @@ The first run downloads the embedding model (~90 MB) from Hugging Face. After th
 | Command | What it does |
 |---|---|
 | `streamlit run app.py` | The demo dashboard |
-| `pytest -q` | 15 offline tests (no API key needed) |
+| `pytest -q` | 18 offline tests (no API key needed) |
 | `python tests/run_eval.py` | Runs every labelled case through the **real** pipeline and prints accuracy |
 | `python scripts/inspect_retrieval.py` | Shows retrieval scores so you can tune the relevance threshold |
 | `python scripts/build_pdfs.py` | Rebuilds the policy PDFs after editing `knowledge_base/source/*.md` |
@@ -39,7 +41,13 @@ The first run downloads the embedding model (~90 MB) from Hugging Face. After th
 ## How it works
 
 ```
-Employee question + AI answer
+Employee question
+        │
+        ▼
+0. Agent 1 answers         Banking AI Assistant: its own search index + LLM
+        │                  → AgentHandoff {question, answer, model, sources it read}
+        ▼  (answer is held: the employee doesn't see it yet)
+TrustGuard receives question + answer only. It never trusts Agent 1's sources.
         │
         ▼
 1. Claim extraction        LLM (forced tool call → guaranteed JSON)
@@ -59,14 +67,15 @@ Employee question + AI answer
 
 | File | Role | The key design decision |
 |---|---|---|
+| `modules/banking_assistant.py` | **Agent 1**: an ordinary retrieval-augmented assistant | Not told to make mistakes. By default (`AGENT1_KB_SCOPE=all`) its index also holds the **superseded** v1 policy with no version labels, like a chatbot index nobody cleaned up, so any outdated answer is a realistic mistake, not a rigged one. It has its own index, separate from TrustGuard's. |
 | `modules/document_loader.py` | Reads the PDFs with PyMuPDF and splits them into numbered sections | A line counts as a heading only if it is **bold and numbered**, so body text like "30 calendar days" is never mistaken for one. Each section is one rule and carries its own citation. |
 | `modules/claim_extractor.py` | Splits the answer into atomic, self-contained claims | Claims must be **self-contained** ("All *travel* claims…", not "They…") because each one is later used alone as a search query. |
 | `modules/llm_client.py` | One interface for "ask the LLM, get JSON back" | Uses a **forced tool call** with a JSON schema, so the reply can't contain broken JSON. Swapping provider means changing one class. |
 | `modules/evidence_retriever.py` | Finds the top-3 most relevant sections per claim | Embeddings match **meaning** rather than words. There's no vector DB because 30 sections take microseconds to search. **Superseded** documents are excluded from search. Falls back to TF-IDF if the model can't load. |
 | `modules/claim_verifier.py` | LLM judgement and rule checks → final status | If nothing relevant is retrieved, the result is INSUFFICIENT_EVIDENCE **without calling the LLM**, so it can't "find" support in unrelated text. |
 | `modules/policy_rules.py` | Deterministic checks | Numbers and units, "not required" vs "required", whether the quote really exists in the source, and two **extraction checks** that guard the extractor AI (a claim must not contain numbers the answer never said; every number in the answer must appear in some claim). Rules **never upgrade** a verdict; a disagreement downgrades it and flags it for human review. |
-| `modules/pipeline.py` | Glue and the overall verdict | The most severe claim decides the headline, because one wrong fact makes an answer unsafe to act on. |
-| `app.py` | Streamlit UI | Shows each pipeline stage live. Never shows a raw traceback. |
+| `modules/pipeline.py` | Glue and the overall verdict | `run_two_agent()` = Agent 1 → handoff → TrustGuard. The most severe claim decides the headline, because one wrong fact makes an answer unsafe to act on. |
+| `app.py` | Streamlit UI | Employee only types a question. Shows both agents working live and **holds the answer until it has been checked**. Never shows a raw traceback. |
 
 ### Shared data contract
 Every verified claim produces the JSON agreed in the project plan (plus extras such as `rule_checks` and `needs_review`):
@@ -76,12 +85,22 @@ Every verified claim produces the JSON agreed in the project plan (plus extras s
  "source_id": "TRAVEL_POLICY_V2", "section": "4.2", "explanation": "The policy sets the daily allowance at $150, not $200."}
 ```
 
+### Agent 1 → TrustGuard handoff (`AgentHandoff` in `schemas.py`)
+```json
+{"question": "...", "answer": "...", "agent_name": "Banking AI Assistant", "model": "gemini-3.5-flash-lite",
+ "kb_scope": "all", "sources": [{"source_id": "TRAVEL_POLICY_V1", "section": "4.2", "status": "Superseded"}],
+ "created_at": "2026-11-10T13:00:00+00:00", "latency_s": 2.1}
+```
+TrustGuard verifies only `question` + `answer`. `sources` is kept for the audit trail (the UI shows it under "What the assistant read"). It is not used as evidence, because if the assistant read the wrong document, trusting its citations would let the same mistake through twice.
+
+Example questions for the demo are in `knowledge_base/demo_questions.json`. Agent 1 writes the answers live, so results can differ between runs. The fixed answers in `tests/test_cases.json` are still used by `run_eval.py` to measure TrustGuard on its own.
+
 ### Knowledge base
 | Document | Status | Why it's there |
 |---|---|---|
 | `TRAVEL_POLICY_V2` Employee Overseas Business Travel Policy v2.0 | Approved | Main demo source ($150/day, manager approval, 30-day deadline) |
 | `SOP_FIN_012` Staff Expense Claims SOP v1.3 | Approved | Procedural steps; ready for the future completeness check |
-| `TRAVEL_POLICY_V1` v1.0 | **Superseded** | Old figures ($120/day, 60 days). Excluded from search, so an AI that repeats outdated rules gets caught (test case E) |
+| `TRAVEL_POLICY_V1` v1.0 | **Superseded** | Old figures ($120/day, 60 days). TrustGuard never searches it. Agent 1 can read it when `AGENT1_KB_SCOPE=all`, which is how it realistically gives outdated answers (also test case E) |
 
 Source files live in `knowledge_base/source/*.md` and are published as PDFs, mirroring how real policies are authored and then distributed as controlled PDFs. Metadata (version, status, dates) lives in `policy_metadata.json`, as it would in a document management system.
 
@@ -112,4 +131,6 @@ The dashboard (`app.py`) is built around five usability principles:
 | `GEMINI_MODEL` | `gemini-3.5-flash-lite` | Flash-Lite has a larger free daily allowance than Flash |
 | `ANTHROPIC_API_KEY` | — | From console.anthropic.com (billed separately from a Claude subscription) |
 | `CLAUDE_MODEL` | `claude-haiku-5-5` | Switch to `claude-sonnet-5-5` if verification quality isn't good enough |
+| `AGENT1_MODEL` | *(empty)* | Agent 1's model. Empty = same as TrustGuard. Set a different one to show the verifier is independent of the assistant |
+| `AGENT1_KB_SCOPE` | `all` | What Agent 1 can read: `all` (incl. superseded, no version labels), `approved`, or `none` (general knowledge only) |
 | `EMBEDDING_MODEL` | `all-MiniLM-L6-v2` | Small and fast; runs on a laptop CPU |

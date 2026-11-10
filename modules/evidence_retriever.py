@@ -86,10 +86,11 @@ def make_embedder(prefer: str = "sentence-transformers"):
 
 
 class EvidenceRetriever:
-    def __init__(self, chunks: list[Chunk], embedder):
-        # Only approved documents are searchable. Superseded versions stay on disk
-        # but must never be used as evidence for what the policy says today.
-        self.chunks = [c for c in chunks if c.status in config.SEARCHABLE_STATUSES]
+    def __init__(self, chunks: list[Chunk], embedder, statuses: set | None = config.SEARCHABLE_STATUSES):
+        # TrustGuard: only approved documents are searchable. Superseded versions stay
+        # on disk but must never be used as evidence for what the policy says today.
+        # statuses=None searches everything (used by Agent 1's "all" knowledge scope).
+        self.chunks = [c for c in chunks if statuses is None or c.status in statuses]
         self.excluded = len(chunks) - len(self.chunks)
         self.embedder = embedder
         texts = [c.embedding_text() for c in self.chunks]

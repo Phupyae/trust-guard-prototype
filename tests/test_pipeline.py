@@ -176,3 +176,37 @@ def test_altered_claim_cannot_be_supported(retriever):
 def test_empty_answer_rejected(retriever):
     with pytest.raises(InputError):
         run_pipeline("q", "   ", retriever, MockClient())
+
+
+# --- Agent 1 + two-agent integration ---
+from modules.banking_assistant import AssistantError, BankingAssistant, build_agent1_retriever  # noqa: E402
+from modules.pipeline import run_two_agent  # noqa: E402
+
+
+def test_agent1_all_scope_includes_superseded_docs(chunks):
+    tg_embedder = TfidfEmbedder()
+    tg = EvidenceRetriever(chunks, tg_embedder)
+    a1 = build_agent1_retriever(chunks, tg_embedder, scope="all")
+    assert any(c.status == "Superseded" for c in a1.chunks)
+    assert a1.embedder is not tg_embedder  # TF-IDF must not be shared between indexes
+    assert all(c.status == "Approved" for c in tg.chunks)  # TrustGuard unaffected
+    assert build_agent1_retriever(chunks, tg_embedder, scope="none") is None
+
+
+def test_agent1_answers_and_hands_off(chunks):
+    a1 = BankingAssistant(MockClient(), build_agent1_retriever(chunks, TfidfEmbedder(), "approved"), "approved")
+    h = a1.answer("What is the daily allowance for overseas business travel?")
+    assert h.answer and h.kb_scope == "approved" and h.agent_name == "Banking AI Assistant"
+    assert h.sources and all(s["status"] == "Approved" for s in h.sources)
+    with pytest.raises(AssistantError):
+        a1.answer("   ")
+
+
+def test_two_agent_flow_end_to_end(chunks, retriever):
+    a1 = BankingAssistant(MockClient(), build_agent1_retriever(chunks, TfidfEmbedder(), "all"), "all")
+    report = run_two_agent("What is the hotel limit for overseas trips?", a1, retriever, MockClient())
+    d = report.to_dict()
+    assert d["agent1_handoff"]["answer"] == report.answer
+    assert "agent1_s" in report.timings and report.results
+    # TrustGuard searched only approved documents, whatever Agent 1 read
+    assert all(r.source_id != "TRAVEL_POLICY_V1" for r in report.results)

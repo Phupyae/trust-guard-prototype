@@ -44,5 +44,19 @@ MIN_RELEVANCE = {"sentence-transformers": 0.30, "tfidf": 0.08}
 # the knowledge base (for the version-checking bonus feature) but aren't evidence.
 SEARCHABLE_STATUSES = {"Approved"}
 
+# --- Agent 1: Banking AI Assistant ---
+# Agent 1 answers the employee; TrustGuard (everything above) checks that answer.
+# Leave AGENT1_MODEL empty to use the same model as TrustGuard. Setting a different
+# model shows the verifier is independent of the assistant it checks.
+AGENT1_MODEL = _secret("AGENT1_MODEL", "")
+# Which documents Agent 1 can search when answering:
+#   all      = every document in knowledge_base, INCLUDING superseded versions, with no
+#              version/status labels. Simulates a typical chatbot whose search index was
+#              loaded once and never cleaned up, so it can honestly quote outdated rules.
+#   approved = only approved documents (a well-maintained assistant)
+#   none     = no documents at all; the LLM answers from general knowledge
+AGENT1_KB_SCOPE = _secret("AGENT1_KB_SCOPE", "all").lower()
+AGENT1_TOP_K = 4  # passages Agent 1 reads per question
+
 # --- Extraction ---
 MAX_CLAIMS = 10

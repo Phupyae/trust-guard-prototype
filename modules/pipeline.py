@@ -29,6 +29,7 @@ class Report:
     results: list = field(default_factory=list)
     timings: dict = field(default_factory=dict)
     coverage_warnings: list = field(default_factory=list)  # facts that may have been dropped
+    handoff: object = None  # AgentHandoff from Agent 1, when the answer came from the assistant
 
     @property
     def counts(self) -> dict:
@@ -61,7 +62,8 @@ class Report:
         return {"question": self.question, "answer": self.answer, "overall": level,
                 "overall_message": message, "counts": self.counts, "needs_review": self.needs_review,
                 "coverage_warnings": self.coverage_warnings,
-                "results": [r.to_dict() for r in self.results], "timings": self.timings}
+                "results": [r.to_dict() for r in self.results], "timings": self.timings,
+                "agent1_handoff": self.handoff.to_dict() if self.handoff else None}
 
 
 def validate_inputs(question: str, answer: str) -> tuple[str, str]:
@@ -85,4 +87,17 @@ def run_pipeline(question: str, answer: str, retriever, llm) -> Report:
     report.results = verify_claims(claims, question, retriever, llm) if claims else []
     t2 = time.perf_counter()
     report.timings = {"extraction_s": round(t1 - t0, 2), "verification_s": round(t2 - t1, 2)}
+    return report
+
+
+def run_two_agent(question: str, assistant, retriever, llm) -> Report:
+    """The full two-agent flow: employee question -> Agent 1 answers -> TrustGuard
+    intercepts and verifies -> one report. TrustGuard receives the handoff exactly as
+    it would receive a pasted answer, so the verification logic is unchanged."""
+    handoff = assistant.answer(question)
+    if not handoff.answer:
+        raise InputError("The assistant returned an empty answer. Try asking again.")
+    report = run_pipeline(handoff.question, handoff.answer, retriever, llm)
+    report.handoff = handoff
+    report.timings = {"agent1_s": handoff.latency_s, **report.timings}
     return report

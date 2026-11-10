@@ -61,3 +61,24 @@ class VerificationResult:
 
     def to_dict(self) -> dict:
         return asdict(self)
+
+
+@dataclass
+class AgentHandoff:
+    """What Agent 1 passes to TrustGuard: the data contract between the two agents.
+
+    TrustGuard verifies ONLY `question` + `answer`. Agent 1's own `sources` are kept
+    for the audit trail but are never used as evidence: if the assistant read an
+    outdated document, trusting its citations would let the same mistake pass twice.
+    TrustGuard always does its own search over approved documents instead."""
+    question: str
+    answer: str
+    agent_name: str          # "Banking AI Assistant"
+    model: str               # which LLM Agent 1 used
+    kb_scope: str            # "all" | "approved" | "none"
+    sources: list[dict] = field(default_factory=list)  # passages Agent 1 says it used
+    created_at: str = ""     # ISO timestamp of the handoff
+    latency_s: float = 0.0   # how long Agent 1 took to answer
+
+    def to_dict(self) -> dict:
+        return asdict(self)
