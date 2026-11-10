@@ -6,13 +6,13 @@
     {"label": "Hotel limit and claim deadline", "question": "What is the hotel limit and the deadline for submitting an overseas travel claim?",
      "why": "v1 says $200/night and 60 days; current v2 says $250/night and 30 days."},
     {"label": "Receipts", "question": "Do I need receipts for my travel expenses?",
-     "why": "Covered by v2 5.2 and SOP 3.2. Usually answered correctly."},
+     "why": "v2 5.2: receipts only above $25, none for the daily allowance. The unofficial FAQ says keep receipts for everything (over-generalised)."},
     {"label": "Finance processing time", "question": "How long does Finance take to process an approved expense claim, and when will I be paid?",
-     "why": "SOP steps 4-5. Usually answered correctly."},
+     "why": "SOP steps 4-5: 10 working days, then next monthly payroll. The unofficial FAQ says about two weeks."},
     {"label": "Business class flights", "question": "Can I fly business class on a 10-hour flight to London?",
-     "why": "Conditional rule (v2 4.4): allowed for 8h+ flights with prior Department Head approval."},
+     "why": "v2 4.4: allowed for 8h+ flights only with prior Department Head approval. The unofficial FAQ drops the approval condition."},
     {"label": "Laundry on a short trip", "question": "Can I claim laundry costs on a 3-day business trip?",
-     "why": "Not reimbursable for trips shorter than 5 days (v2 section 6)."},
+     "why": "v2 section 6: not reimbursable for trips shorter than 5 days. The unofficial FAQ says 3 days or longer."},
     {"label": "Maternity leave (not covered)", "question": "How much paid maternity leave do employees get?",
      "why": "No document covers this. Expect the assistant to decline, or TrustGuard to return Insufficient evidence."}
   ]

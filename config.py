@@ -46,17 +46,22 @@ SEARCHABLE_STATUSES = {"Approved"}
 
 # --- Agent 1: Banking AI Assistant ---
 # Agent 1 answers the employee; TrustGuard (everything above) checks that answer.
-# Leave AGENT1_MODEL empty to use the same model as TrustGuard. Setting a different
-# model shows the verifier is independent of the assistant it checks.
-AGENT1_MODEL = _secret("AGENT1_MODEL", "")
+# Agent 1 simulates a typical deployed assistant, tuned for cost and speed because it
+# serves every employee: by default it runs on the provider's smallest model and reads
+# only a few passages. Set AGENT1_MODEL to override. Using a different (stronger) model
+# for TrustGuard than for Agent 1 also shows the verifier is independent of the assistant.
+AGENT1_DEFAULT_MODELS = {"gemini": "gemini-3.5-flash-lite", "claude": "claude-haiku-5-5"}
+AGENT1_MODEL = _secret("AGENT1_MODEL", "") or AGENT1_DEFAULT_MODELS.get(LLM_PROVIDER, "")
 # Which documents Agent 1 can search when answering:
-#   all      = every document in knowledge_base, INCLUDING superseded versions, with no
-#              version/status labels. Simulates a typical chatbot whose search index was
-#              loaded once and never cleaned up, so it can honestly quote outdated rules.
+#   all      = every document in knowledge_base, INCLUDING superseded policy versions and
+#              unofficial intranet pages, with no version/status labels. Simulates a typical
+#              chatbot whose index was bulk-loaded and never cleaned up.
 #   approved = only approved documents (a well-maintained assistant)
 #   none     = no documents at all; the LLM answers from general knowledge
 AGENT1_KB_SCOPE = _secret("AGENT1_KB_SCOPE", "all").lower()
-AGENT1_TOP_K = 4  # passages Agent 1 reads per question
+# Passages Agent 1 reads per question. Kept small, as in cost-tuned assistants, so a
+# question touching two rules can miss one (TrustGuard reads TOP_K per CLAIM instead).
+AGENT1_TOP_K = int(_secret("AGENT1_TOP_K", "2"))
 
 # --- Extraction ---
 MAX_CLAIMS = 10

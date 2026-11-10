@@ -210,12 +210,14 @@ elif llm.name == "mock":
 
 # ---------- sidebar: what the system is using (Learnability, Perceivability) ----------
 with st.sidebar:
-    SCOPE_TEXT = {"all": "All documents, including superseded versions, with no version labels "
-                         "(simulates a search index that was never cleaned up)",
+    SCOPE_TEXT = {"all": "Everything, including superseded policies and an unofficial intranet FAQ, "
+                         "with no version labels (simulates a bulk-loaded index nobody cleaned up)",
                   "approved": "Approved documents only", "none": "No documents (general knowledge only)"}
     st.markdown("### Agent 1 · Banking AI Assistant")
     st.markdown(f"**Language model**  \n{assistant.model if assistant else 'not available'}")
     st.markdown(f"**Can read**  \n{SCOPE_TEXT.get(config.AGENT1_KB_SCOPE, config.AGENT1_KB_SCOPE)}")
+    if agent1_retriever is not None:
+        st.markdown(f"**Reads per question**  \nTop {config.AGENT1_TOP_K} passages")
 
     st.markdown("### Agent 2 · TrustGuard")
     model_name = ("offline mock (not real verification)" if llm and llm.name == "mock"
@@ -224,15 +226,16 @@ with st.sidebar:
     st.markdown(f"**Evidence search**  \n{retriever.embedder.label}")
     if retrieval_warning:
         st.warning(retrieval_warning)
-    st.markdown(f"**Policy sections searched**  \n{len(retriever.chunks)} "
-                f"({retriever.excluded} from superseded versions are excluded)")
+    st.markdown(f"**Policy sections searched**  \n{len(retriever.chunks)} from approved documents "
+                f"({retriever.excluded} superseded or unofficial sections are excluded)")
 
     st.markdown("### Policy documents")
-    st.caption("TrustGuard only uses documents marked In use.")
+    st.caption("TrustGuard only uses Approved documents. Agent 1 may read all of them, depending on its settings.")
     for doc in load_metadata():
         in_use = doc["status"] in config.SEARCHABLE_STATUSES
-        tag = (chip(SUPPORTED, "In use") if in_use
-               else '<span class="tg-chip tg-neutral"><b aria-hidden="true">–</b>Superseded, TrustGuard ignores it</span>')
+        tag = (chip(SUPPORTED, "Approved") if in_use
+               else f'<span class="tg-chip tg-neutral"><b aria-hidden="true">–</b>{html.escape(doc["status"])}, '
+                    'TrustGuard ignores it</span>')
         st.markdown(f'<div class="tg-kb">{tag}<br><b class="t">{html.escape(doc["title"])}</b><br>'
                     f'<small>Version {doc["version"]}, effective {doc["effective_date"]}</small></div>',
                     unsafe_allow_html=True)
@@ -354,7 +357,7 @@ else:
         with st.expander("What the assistant read (for audit only; TrustGuard does its own search)"):
             for src in h.sources:
                 note = "" if src["status"] in config.SEARCHABLE_STATUSES else \
-                    f" — **{src['status']}**, not current policy"
+                    f" — **{src['status']}**, not approved policy"
                 st.markdown(f"- {src['title']}, version {src['version']}, section {src['section']} "
                             f"{src['section_title']}{note}")
 

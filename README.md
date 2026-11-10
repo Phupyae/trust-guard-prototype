@@ -67,7 +67,7 @@ TrustGuard receives question + answer only. It never trusts Agent 1's sources.
 
 | File | Role | The key design decision |
 |---|---|---|
-| `modules/banking_assistant.py` | **Agent 1**: an ordinary retrieval-augmented assistant | Not told to make mistakes. By default (`AGENT1_KB_SCOPE=all`) its index also holds the **superseded** v1 policy with no version labels, like a chatbot index nobody cleaned up, so any outdated answer is a realistic mistake, not a rigged one. It has its own index, separate from TrustGuard's. |
+| `modules/banking_assistant.py` | **Agent 1**: an ordinary retrieval-augmented assistant | Never told to make mistakes. It is set up the way a typical deployed chatbot is: a **bulk-loaded index** (superseded v1 policy and an unofficial team FAQ, with no version labels), the provider's **smallest model**, and only **2 passages** per question. Every error it makes comes from one of those realistic settings. It has its own index, separate from TrustGuard's. |
 | `modules/document_loader.py` | Reads the PDFs with PyMuPDF and splits them into numbered sections | A line counts as a heading only if it is **bold and numbered**, so body text like "30 calendar days" is never mistaken for one. Each section is one rule and carries its own citation. |
 | `modules/claim_extractor.py` | Splits the answer into atomic, self-contained claims | Claims must be **self-contained** ("All *travel* claims…", not "They…") because each one is later used alone as a search query. |
 | `modules/llm_client.py` | One interface for "ask the LLM, get JSON back" | Uses a **forced tool call** with a JSON schema, so the reply can't contain broken JSON. Swapping provider means changing one class. |
@@ -95,11 +95,18 @@ TrustGuard verifies only `question` + `answer`. `sources` is kept for the audit 
 
 Example questions for the demo are in `knowledge_base/demo_questions.json`. Agent 1 writes the answers live, so results can differ between runs. The fixed answers in `tests/test_cases.json` are still used by `run_eval.py` to measure TrustGuard on its own.
 
+### Simulation assumptions (state these in the presentation)
+1. **TrustGuard connects to the bank's governed policy repository**: approved documents only, each with an owner, version, status and effective date.
+2. **Agent 1 uses a broad, uncontrolled knowledge base**, as deployed chatbots usually do: policies, old versions and intranet pages loaded in bulk.
+3. **Agent 1 is tuned for cost and speed** (smallest model, few passages), because it serves every employee.
+4. Nothing tells Agent 1 to be wrong. To show TrustGuard's value doesn't depend on a messy index, run the same questions with `AGENT1_KB_SCOPE=approved` too (clean sources, so only the model's own mistakes remain) and report both.
+
 ### Knowledge base
 | Document | Status | Why it's there |
 |---|---|---|
 | `TRAVEL_POLICY_V2` Employee Overseas Business Travel Policy v2.0 | Approved | Main demo source ($150/day, manager approval, 30-day deadline) |
 | `SOP_FIN_012` Staff Expense Claims SOP v1.3 | Approved | Procedural steps; ready for the future completeness check |
+| `INTRANET_TRAVEL_FAQ` team intranet page | **Unofficial** | Written by a sales team in 2024, not a policy owner. Mixes outdated figures ($120/day, ~2 months), over-generalisations (receipts for everything), dropped conditions (business class without approval) and wrong rules (laundry from 3 days). TrustGuard never searches it; Agent 1 can read it when `AGENT1_KB_SCOPE=all` |
 | `TRAVEL_POLICY_V1` v1.0 | **Superseded** | Old figures ($120/day, 60 days). TrustGuard never searches it. Agent 1 can read it when `AGENT1_KB_SCOPE=all`, which is how it realistically gives outdated answers (also test case E) |
 
 Source files live in `knowledge_base/source/*.md` and are published as PDFs, mirroring how real policies are authored and then distributed as controlled PDFs. Metadata (version, status, dates) lives in `policy_metadata.json`, as it would in a document management system.
@@ -131,6 +138,7 @@ The dashboard (`app.py`) is built around five usability principles:
 | `GEMINI_MODEL` | `gemini-3.5-flash-lite` | Flash-Lite has a larger free daily allowance than Flash |
 | `ANTHROPIC_API_KEY` | — | From console.anthropic.com (billed separately from a Claude subscription) |
 | `CLAUDE_MODEL` | `claude-haiku-5-5` | Switch to `claude-sonnet-5-5` if verification quality isn't good enough |
-| `AGENT1_MODEL` | *(empty)* | Agent 1's model. Empty = same as TrustGuard. Set a different one to show the verifier is independent of the assistant |
-| `AGENT1_KB_SCOPE` | `all` | What Agent 1 can read: `all` (incl. superseded, no version labels), `approved`, or `none` (general knowledge only) |
+| `AGENT1_MODEL` | *(empty)* | Agent 1's model. Empty = the provider's smallest model (`gemini-3.5-flash-lite` / `claude-haiku-5-5`) |
+| `AGENT1_KB_SCOPE` | `all` | What Agent 1 can read: `all` (incl. superseded policy and unofficial FAQ, no version labels), `approved`, or `none` (general knowledge only) |
+| `AGENT1_TOP_K` | `2` | Passages Agent 1 reads per question |
 | `EMBEDDING_MODEL` | `all-MiniLM-L6-v2` | Small and fast; runs on a laptop CPU |

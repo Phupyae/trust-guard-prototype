@@ -4,8 +4,12 @@ This is a deliberately ORDINARY retrieval-augmented assistant, the kind a bank m
 already run: search some documents, give the LLM the top passages, ask it to answer.
 It is not told to make mistakes. Any errors it makes come from the same places real
 assistants get them:
-  * its search index may still contain superseded policy versions (AGENT1_KB_SCOPE=all),
-    and like most simple indexes it doesn't know which version is current;
+  * its search index was bulk-loaded (AGENT1_KB_SCOPE=all): it still holds superseded
+    policy versions and an unofficial team FAQ page, and like most simple indexes it
+    doesn't know which source is current or authoritative;
+  * it is tuned for cost and speed because it serves every employee: the provider's
+    smallest model, and only AGENT1_TOP_K (default 2) passages per question, so a question
+    touching two rules can miss one;
   * the LLM may blend, round or over-generalise what it read;
   * with no documents (scope=none) it falls back on general knowledge and guesses.
 

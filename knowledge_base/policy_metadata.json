@@ -14,6 +14,19 @@
       "source_file": "source/expense_claims_sop.md"
     },
     {
+      "document_id": "INTRANET_TRAVEL_FAQ",
+      "title": "Business Travel FAQ (Team Intranet Page)",
+      "version": "n/a",
+      "status": "Unofficial",
+      "effective_date": "2024-05-20",
+      "expiry_date": null,
+      "supersedes": null,
+      "superseded_by": null,
+      "owner": "Regional Sales Operations team (not a policy owner)",
+      "file": "travel_faq_2024.pdf",
+      "source_file": "source/travel_faq_2024.md"
+    },
+    {
       "document_id": "TRAVEL_POLICY_V1",
       "title": "Employee Overseas Business Travel Policy",
       "version": "1.0",

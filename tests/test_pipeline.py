@@ -187,7 +187,7 @@ def test_agent1_all_scope_includes_superseded_docs(chunks):
     tg_embedder = TfidfEmbedder()
     tg = EvidenceRetriever(chunks, tg_embedder)
     a1 = build_agent1_retriever(chunks, tg_embedder, scope="all")
-    assert any(c.status == "Superseded" for c in a1.chunks)
+    assert {"Superseded", "Unofficial"} <= {c.status for c in a1.chunks}
     assert a1.embedder is not tg_embedder  # TF-IDF must not be shared between indexes
     assert all(c.status == "Approved" for c in tg.chunks)  # TrustGuard unaffected
     assert build_agent1_retriever(chunks, tg_embedder, scope="none") is None
