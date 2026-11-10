@@ -132,6 +132,13 @@ h1, h2, h3 {color:var(--ink); letter-spacing:-0.01em;}
   border-left:6px solid currentColor; border-radius:8px; padding:0.9rem 1.1rem; margin:0.3rem 0 0.4rem 0;}
 .tg-answer .who {display:block; font-size:0.8rem; font-weight:600; color:var(--ink-3); margin-bottom:0.35rem;}
 .tg-answer p {color:var(--ink); margin:0;}
+.tg-agent {font-size:0.78rem; font-weight:700; letter-spacing:0.02em; color:var(--ink-3); margin-bottom:0.2rem;}
+.tg-agent.tg-a2 {color:var(--cobalt);}
+.tg-intercept {display:flex; gap:0.6rem; align-items:center; background:var(--wis-hero); border:1px dashed var(--cobalt);
+  color:var(--wis-ink); border-radius:8px; padding:0.55rem 0.9rem; font-weight:600; margin:0.1rem 0 0.6rem 0;}
+.tg-intercept small {display:block; font-weight:400; color:var(--ink-2);}
+.tg-held {margin-top:0.4rem;}
+[data-testid="stChatMessage"] {background:transparent;}
 @media (max-width:720px) {.tg-compare {grid-template-columns:1fr;} .block-container {padding-top:4rem;}}
 
 .tg-mock {background:#3F4A5C; color:#fff; padding:0.7rem 1rem; border-radius:8px; font-weight:600; margin-bottom:0.8rem;}
@@ -149,21 +156,21 @@ def chip(status: str, text: str | None = None) -> str:
 
 
 # ---------- header first, so the page is never blank while loading (Feedback) ----------
-st.markdown('<div class="tg-hero"><h1><span aria-hidden="true">🛡️</span>TrustGuard AI</h1>'
-            '<p>Ask the bank\'s AI assistant a question. Before you see its answer, TrustGuard intercepts it and '
-            'checks every claim against approved bank policy, showing what the policy supports, contradicts or '
-            'cannot confirm. It does not guarantee that an answer is correct.</p>'
-            '<span class="tg-pill">Two independent agents</span><span class="tg-pill">Claim-by-claim checks</span>'
-            '<span class="tg-pill">Cited policy evidence</span><span class="tg-pill">Fictional demo data</span></div>',
+st.markdown('<div class="tg-hero"><h1><span aria-hidden="true">🏦</span>Northbridge Bank AI Assistant</h1>'
+            '<p>Ask about staff policies and procedures. Every answer is intercepted by '
+            '<b>TrustGuard</b>, an independent verification layer, and checked against approved bank policy '
+            'before you rely on it.</p>'
+            '<span class="tg-pill">Agent 1 answers live</span><span class="tg-pill">🛡️ Checked by TrustGuard</span>'
+            '<span class="tg-pill">Fictional demo data</span></div>',
             unsafe_allow_html=True)
 
 # The flow, drawn once so the audience always sees which agent does what (Learnability)
 st.markdown(
     '<div class="tg-flow" aria-label="How the two agents work together">'
     '<div><b>You</b><span>ask a question</span></div><i aria-hidden="true">→</i>'
-    '<div class="a1"><b>Agent 1 · Banking AI Assistant</b><span>drafts an answer</span></div><i aria-hidden="true">→</i>'
-    '<div class="a2"><b>Agent 2 · TrustGuard</b><span>intercepts and checks each claim</span></div><i aria-hidden="true">→</i>'
-    '<div><b>You</b><span>get the answer with evidence</span></div></div>', unsafe_allow_html=True)
+    '<div class="a1"><b>Agent 1 · Banking AI Assistant</b><span>answers in real time</span></div><i aria-hidden="true">→</i>'
+    '<div class="a2"><b>🛡️ TrustGuard</b><span>intercepts the answer and checks each claim</span></div><i aria-hidden="true">→</i>'
+    '<div><b>You</b><span>know which parts to trust, with evidence</span></div></div>', unsafe_allow_html=True)
 
 
 # ---------- cached resources (loaded once per server, not per click) ----------
@@ -208,134 +215,82 @@ elif llm.name == "mock":
                 'Set LLM_PROVIDER=gemini (or claude) in .env before any demo.</div>', unsafe_allow_html=True)
 
 
-# ---------- sidebar: what the system is using (Learnability, Perceivability) ----------
+# ---------- sidebar: examples first, system details one click away ----------
+questions = demo_questions()
+
+
+def ask(question: str) -> None:
+    st.session_state.pending_question = question
+
+
 with st.sidebar:
+    st.markdown("### Example questions")
+    for i, q in enumerate(questions):
+        st.button(q["label"], key=f"ex_side_{i}", help=q["question"], on_click=ask, args=(q["question"],),
+                  use_container_width=True, disabled=assistant is None)
+    st.button("Clear conversation", on_click=lambda: st.session_state.update(turns=[]), use_container_width=True)
+
     SCOPE_TEXT = {"all": "Everything, including superseded policies and an unofficial intranet FAQ, "
                          "with no version labels (simulates a bulk-loaded index nobody cleaned up)",
                   "approved": "Approved documents only", "none": "No documents (general knowledge only)"}
-    st.markdown("### Agent 1 · Banking AI Assistant")
-    st.markdown(f"**Language model**  \n{assistant.model if assistant else 'not available'}")
-    st.markdown(f"**Can read**  \n{SCOPE_TEXT.get(config.AGENT1_KB_SCOPE, config.AGENT1_KB_SCOPE)}")
-    if agent1_retriever is not None:
-        st.markdown(f"**Reads per question**  \nTop {config.AGENT1_TOP_K} passages")
-
-    st.markdown("### Agent 2 · TrustGuard")
-    model_name = ("offline mock (not real verification)" if llm and llm.name == "mock"
-                  else getattr(llm, "model", "") if llm else "not available")
-    st.markdown(f"**Language model**  \n{model_name}")
-    st.markdown(f"**Evidence search**  \n{retriever.embedder.label}")
+    st.markdown("### How the demo is set up")
+    with st.expander("🏦 Agent 1 · Banking AI Assistant"):
+        st.markdown(f"**Language model**  \n{assistant.model if assistant else 'not available'}")
+        st.markdown(f"**Can read**  \n{SCOPE_TEXT.get(config.AGENT1_KB_SCOPE, config.AGENT1_KB_SCOPE)}")
+        if agent1_retriever is not None:
+            st.markdown(f"**Reads per question**  \nTop {config.AGENT1_TOP_K} passages")
+    with st.expander("🛡️ TrustGuard · verification layer"):
+        model_name = ("offline mock (not real verification)" if llm and llm.name == "mock"
+                      else getattr(llm, "model", "") if llm else "not available")
+        st.markdown(f"**Language model**  \n{model_name}")
+        st.markdown(f"**Evidence search**  \n{retriever.embedder.label}")
+        st.markdown(f"**Policy sections searched**  \n{len(retriever.chunks)} from approved documents "
+                    f"({retriever.excluded} superseded or unofficial sections are excluded)")
     if retrieval_warning:
         st.warning(retrieval_warning)
-    st.markdown(f"**Policy sections searched**  \n{len(retriever.chunks)} from approved documents "
-                f"({retriever.excluded} superseded or unofficial sections are excluded)")
-
-    st.markdown("### Policy documents")
-    st.caption("TrustGuard only uses Approved documents. Agent 1 may read all of them, depending on its settings.")
-    for doc in load_metadata():
-        in_use = doc["status"] in config.SEARCHABLE_STATUSES
-        tag = (chip(SUPPORTED, "Approved") if in_use
-               else f'<span class="tg-chip tg-neutral"><b aria-hidden="true">–</b>{html.escape(doc["status"])}, '
-                    'TrustGuard ignores it</span>')
-        st.markdown(f'<div class="tg-kb">{tag}<br><b class="t">{html.escape(doc["title"])}</b><br>'
-                    f'<small>Version {doc["version"]}, effective {doc["effective_date"]}</small></div>',
-                    unsafe_allow_html=True)
+    with st.expander("📄 Policy documents"):
+        st.caption("TrustGuard only uses Approved documents. Agent 1 may read all of them, depending on its settings.")
+        for doc in load_metadata():
+            in_use = doc["status"] in config.SEARCHABLE_STATUSES
+            tag = (chip(SUPPORTED, "Approved") if in_use
+                   else f'<span class="tg-chip tg-neutral"><b aria-hidden="true">–</b>{html.escape(doc["status"])}, '
+                        'TrustGuard ignores it</span>')
+            st.markdown(f'<div class="tg-kb">{tag}<br><b class="t">{html.escape(doc["title"])}</b><br>'
+                        f'<small>Version {doc["version"]}, effective {doc["effective_date"]}</small></div>',
+                        unsafe_allow_html=True)
     st.caption("All policies are fictional and used for demonstration only. No real OCBC data is used.")
 
 
-# ---------- step 1: ask ----------
-questions = demo_questions()
-CUSTOM = "Write my own"
+# ---------- the conversation ----------
+# Agent 1 is the product the employee uses. TrustGuard appears as a second agent that
+# steps into the conversation after every answer: it intercepts, checks, and labels it.
+A1_AVATAR, TG_AVATAR, USER_AVATAR = "🏦", "🛡️", "🧑‍💼"
+VERDICT_LABEL = {"error": "TrustGuard: do not rely on this answer",
+                 "warning": "TrustGuard: use with caution",
+                 "success": "TrustGuard: verified against approved policy",
+                 "info": "TrustGuard: no checkable facts in this answer"}
+st.session_state.setdefault("turns", [])
 
 
-def load_example():
-    q = next((q for q in questions if q["label"] == st.session_state.example), None)
-    st.session_state.question = q["question"] if q else ""
-    st.session_state.pop("report", None)
+def held_chip() -> str:
+    return ('<div class="tg-held"><span class="tg-chip tg-rev"><b aria-hidden="true">⏸</b>'
+            'Intercepted by TrustGuard: checking before delivery</span></div>')
 
 
-def clear_all():
-    st.session_state.example = CUSTOM
-    st.session_state.question = ""
-    st.session_state.pop("report", None)
+def verdict_chip(report: Report) -> str:
+    level, _ = report.overall
+    return (f'<div class="tg-held"><span class="tg-chip tg-{VERDICT_KEY[level]}">'
+            f'<b aria-hidden="true">{VERDICT_ICON[level]}</b>{VERDICT_LABEL[level]}</span></div>')
 
 
-with st.container(border=True, key="panel_input"):
-    st.markdown('<div class="tg-step"><span>1</span>Ask the bank\'s AI assistant</div>', unsafe_allow_html=True)
-    st.markdown('<p class="tg-help">Type a question about staff policy, or pick an example. Choosing an example '
-                'only fills the box; nothing runs until you press Ask.</p>', unsafe_allow_html=True)
-    st.selectbox("Example question", [CUSTOM] + [q["label"] for q in questions], key="example",
-                 on_change=load_example)
-    st.text_input("Your question", key="question",
-                  placeholder="How much can I claim per day for an overseas business trip?",
-                  help="Up to 500 characters. The assistant answers it, then TrustGuard checks the answer.")
-    b1, b2, _ = st.columns([1.3, 1, 4])
-    run = b1.button("Ask", type="primary", disabled=assistant is None, use_container_width=True)
-    b2.button("Clear", on_click=clear_all, use_container_width=True)
-
-# ---------- step 2: the two agents at work ----------
-with st.container(border=True, key="panel_verify"):
-    st.markdown('<div class="tg-step"><span>2</span>The assistant answers and TrustGuard checks it</div>',
-                unsafe_allow_html=True)
-    st.markdown('<p class="tg-help">The answer is held until TrustGuard has checked it, so you never see an '
-                'unchecked answer. This usually takes 10–20 seconds.</p>', unsafe_allow_html=True)
-
-    if run:
-        try:
-            with st.status("Agent 1 is answering…", expanded=True) as status:
-                st.write("**Agent 1 · Banking AI Assistant** is reading its documents and writing an answer…")
-                handoff = assistant.answer(st.session_state.question)
-                if not handoff.answer:
-                    raise InputError("The assistant returned an empty answer. Try asking again.")
-                # Hold the answer: from here on, only TrustGuard has seen it (Predictability)
-                st.write(f"Agent 1 answered in {handoff.latency_s:.1f} s. **TrustGuard intercepted the answer** "
-                         "and is holding it until the check is finished.")
-                question, answer = validate_inputs(handoff.question, handoff.answer)
-                report = Report(question=question, answer=answer, handoff=handoff)
-
-                status.update(label="TrustGuard is checking the answer…")
-                st.write("**Agent 2 · TrustGuard** is splitting the answer into separate claims…")
-                t0 = time.perf_counter()
-                claims = extract_claims(question, answer, llm)
-                report.coverage_warnings = coverage_check([c.claim for c in claims], answer)
-                t1 = time.perf_counter()
-                if claims:
-                    st.write(f"Found {len(claims)} claim{'s' if len(claims) != 1 else ''}. Searching approved "
-                             "policies and checking each one…")
-                    report.results = verify_claims(claims, question, retriever, llm)
-                else:
-                    st.write("No checkable factual claims were found in the answer.")
-                t2 = time.perf_counter()
-                report.timings = {"agent1_s": handoff.latency_s, "extraction_s": round(t1 - t0, 2),
-                                  "verification_s": round(t2 - t1, 2)}
-                status.update(label=f"Answered and checked {len(report.results)} claim"
-                                    f"{'s' if len(report.results) != 1 else ''} in "
-                                    f"{handoff.latency_s + t2 - t0:.1f} seconds",
-                              state="complete", expanded=False)
-            st.session_state.report = report
-            st.toast("Answer checked. See the results below.", icon="✅")
-        except (InputError, AssistantError) as e:
-            st.warning(str(e))
-        except LLMError as e:
-            st.error(f"The check could not run. {e}")
-        except Exception as e:  # never show a raw traceback to judges
-            st.error(f"The check stopped because of an unexpected error ({type(e).__name__}: {e}). "
-                     "Try again; if it repeats, restart the app.")
+def intercept_banner() -> None:
+    st.markdown('<div class="tg-agent tg-a2">TRUSTGUARD · VERIFICATION LAYER</div>'
+                '<div class="tg-intercept"><span aria-hidden="true">🛡️</span><div>Answer intercepted'
+                '<small>TrustGuard is checking the assistant\'s answer against approved policy before it is '
+                'delivered.</small></div></div>', unsafe_allow_html=True)
 
 
-# ---------- step 3: the checked answer ----------
-report: Report | None = st.session_state.get("report")
-st.markdown('<div class="tg-step" style="margin-top:1.6rem"><span>3</span>Read the checked answer</div>',
-            unsafe_allow_html=True)
-
-if not report:
-    st.markdown('<p class="tg-help">After you press Ask, you will see TrustGuard\'s overall verdict, the assistant\'s '
-                'answer, and then each claim next to the policy text it was checked against.</p>',
-                unsafe_allow_html=True)
-else:
-    if st.session_state.get("question", "").strip() != report.question:
-        st.markdown('<div class="tg-stale">You have changed the question since this check. The findings below are '
-                    'for the previous question. Press Ask to ask the new one.</div>', unsafe_allow_html=True)
-
+def render_findings(report: Report, turn: int) -> None:
     level, message = report.overall
     c = report.counts
     count_chips = "".join(chip(s, f"{c[s]} {STATUS[s]['label'].lower()}")
@@ -348,25 +303,11 @@ else:
         f'<div><div class="msg">{html.escape(message)}</div>'
         f'<div class="counts">{count_chips}{review_chip}</div></div></div>', unsafe_allow_html=True)
 
-    # The held answer, released together with the verdict and coloured by it
-    st.markdown(f'<div class="tg-answer tg-{VERDICT_KEY[level]}" style="background:#fff">'
-                f'<span class="who">Agent 1 · Banking AI Assistant answered (released after TrustGuard\'s check)</span>'
-                f'<p>{html.escape(report.answer)}</p></div>', unsafe_allow_html=True)
-    h = report.handoff
-    if h and h.sources:
-        with st.expander("What the assistant read (for audit only; TrustGuard does its own search)"):
-            for src in h.sources:
-                note = "" if src["status"] in config.SEARCHABLE_STATUSES else \
-                    f" — **{src['status']}**, not approved policy"
-                st.markdown(f"- {src['title']}, version {src['version']}, section {src['section']} "
-                            f"{src['section_title']}{note}")
-
     for warning in report.coverage_warnings:
         st.warning(warning)
     if report.needs_review:
         st.info("An automated check disagreed with the AI's work on at least one claim, so those findings are "
                 "marked for review. Open “How this was checked” on the marked claim for the reason.")
-
     if report.results:
         st.markdown('<div class="tg-legend">' + "".join(
             f'<div>{chip(s)}<span>{STATUS[s]["meaning"]}</span></div>' for s in STATUS) + "</div>",
@@ -382,7 +323,7 @@ else:
                         f'section {r.section} {html.escape(r.section_title)}</div>')
         else:
             evidence = '<div class="tg-doc empty">No approved policy section addresses this claim.</div>'
-        with st.container(border=True, key=f"card_{r.claim_id}"):
+        with st.container(border=True, key=f"card_{turn}_{r.claim_id}"):
             st.markdown(
                 f'<div class="tg-card tg-{s["key"]}" style="background:transparent">'
                 f'<div class="tg-card-head">{chip(r.status)}<span class="tg-claimno">Claim {r.claim_id}</span>{review}</div>'
@@ -401,8 +342,108 @@ else:
                     st.markdown(f"- `{p['score']:.3f}` {p['source_id']} section {p['section']} "
                                 f"{p['section_title']}: _{p['text'][:160]}…_")
 
+    h = report.handoff
+    if h and h.sources:
+        with st.expander("What the assistant read (audit trail; TrustGuard does its own search)"):
+            for src in h.sources:
+                note = "" if src["status"] in config.SEARCHABLE_STATUSES else \
+                    f" — **{src['status']}**, not approved policy"
+                st.markdown(f"- {src['title']}, version {src['version']}, section {src['section']} "
+                            f"{src['section_title']}{note}")
     t = report.timings
-    st.caption(f"Agent 1 took {t.get('agent1_s', 0)} s to answer. TrustGuard took {t.get('extraction_s', 0)} s "
-               f"to extract claims and {t.get('verification_s', 0)} s to check them.")
-    st.download_button("Download this report (JSON)", json.dumps(report.to_dict(), indent=2),
-                       file_name="trustguard_report.json", mime="application/json")
+    st.caption(f"Agent 1 answered in {t.get('agent1_s', 0)} s. TrustGuard extracted claims in "
+               f"{t.get('extraction_s', 0)} s and checked them in {t.get('verification_s', 0)} s.")
+    st.download_button("Download TrustGuard report (JSON)", json.dumps(report.to_dict(), indent=2),
+                       file_name="trustguard_report.json", mime="application/json", key=f"dl_{turn}")
+
+
+def typing(text: str):
+    """Shows Agent 1's finished answer word by word, like a chat assistant. The answer is
+    generated in full first (TrustGuard needs the whole answer), then displayed."""
+    for word in text.split(" "):
+        yield word + " "
+        time.sleep(0.03)
+
+
+# --- welcome message from Agent 1 ---
+with st.chat_message("assistant", avatar=A1_AVATAR):
+    st.markdown('<div class="tg-agent">AGENT 1 · BANKING AI ASSISTANT</div>', unsafe_allow_html=True)
+    st.markdown("Hi! I can answer questions about Northbridge Bank's staff policies, such as travel claims, "
+                "allowances and expense procedures. Ask me anything below, or try an example:")
+    if not st.session_state.turns:
+        cols = st.columns(3)
+        for i, q in enumerate(questions[:6]):
+            cols[i % 3].button(q["label"], key=f"ex_main_{i}", help=q["question"], on_click=ask,
+                               args=(q["question"],), use_container_width=True, disabled=assistant is None)
+
+# --- earlier turns ---
+for i, rep in enumerate(st.session_state.turns):
+    latest = i == len(st.session_state.turns) - 1
+    with st.chat_message("user", avatar=USER_AVATAR):
+        st.markdown(rep.question)
+    with st.chat_message("assistant", avatar=A1_AVATAR):
+        st.markdown('<div class="tg-agent">AGENT 1 · BANKING AI ASSISTANT</div>', unsafe_allow_html=True)
+        st.markdown(rep.answer)
+        st.markdown(verdict_chip(rep), unsafe_allow_html=True)
+    with st.chat_message("TrustGuard", avatar=TG_AVATAR):
+        st.markdown('<div class="tg-agent tg-a2">TRUSTGUARD · VERIFICATION LAYER</div>', unsafe_allow_html=True)
+        if st.toggle("Show TrustGuard's check", value=latest, key=f"show_{i}"):
+            render_findings(rep, i)
+
+# --- a new question: Agent 1 answers live, then TrustGuard intercepts ---
+typed = st.chat_input("Ask the Banking AI Assistant about staff policy…", disabled=assistant is None)
+question = typed or st.session_state.pop("pending_question", None)
+
+if question:
+    turn = len(st.session_state.turns)
+    with st.chat_message("user", avatar=USER_AVATAR):
+        st.markdown(question)
+    try:
+        # Step 1: Agent 1 answers in real time
+        with st.chat_message("assistant", avatar=A1_AVATAR):
+            st.markdown('<div class="tg-agent">AGENT 1 · BANKING AI ASSISTANT</div>', unsafe_allow_html=True)
+            with st.spinner("Searching the knowledge base and writing an answer…"):
+                handoff = assistant.answer(question)
+            if not handoff.answer:
+                raise InputError("The assistant returned an empty answer. Try asking again.")
+            st.write_stream(typing(handoff.answer))
+            badge = st.empty()
+            badge.markdown(held_chip(), unsafe_allow_html=True)
+
+        # Step 2: TrustGuard intercepts the finished answer and verifies it
+        with st.chat_message("TrustGuard", avatar=TG_AVATAR):
+            intercept_banner()
+            q, a = validate_inputs(handoff.question, handoff.answer)
+            report = Report(question=q, answer=a, handoff=handoff)
+            with st.status("TrustGuard is verifying the answer…", expanded=True) as status:
+                st.write("Received the question and answer from Agent 1 (not its sources).")
+                st.write("Splitting the answer into separate factual claims…")
+                t0 = time.perf_counter()
+                claims = extract_claims(q, a, llm)
+                report.coverage_warnings = coverage_check([c.claim for c in claims], a)
+                t1 = time.perf_counter()
+                if claims:
+                    st.write(f"Found {len(claims)} claim{'s' if len(claims) != 1 else ''}:")
+                    for c in claims:
+                        st.write(f"  {c.claim_id}. {c.claim}")
+                    st.write("Searching approved policies and checking each claim…")
+                    report.results = verify_claims(claims, q, retriever, llm)
+                else:
+                    st.write("No checkable factual claims were found in the answer.")
+                t2 = time.perf_counter()
+                report.timings = {"agent1_s": handoff.latency_s, "extraction_s": round(t1 - t0, 2),
+                                  "verification_s": round(t2 - t1, 2)}
+                status.update(label=f"TrustGuard checked {len(report.results)} claim"
+                                    f"{'s' if len(report.results) != 1 else ''} in {t2 - t0:.1f} seconds",
+                              state="complete", expanded=False)
+            render_findings(report, turn)
+
+        # Step 3: the verdict goes back onto the assistant's answer
+        badge.markdown(verdict_chip(report), unsafe_allow_html=True)
+        st.session_state.turns.append(report)
+    except (InputError, AssistantError) as e:
+        st.warning(str(e))
+    except LLMError as e:
+        st.error(f"The assistant or TrustGuard could not run. {e}")
+    except Exception as e:  # never show a raw traceback to judges
+        st.error(f"Something went wrong ({type(e).__name__}: {e}). Try again; if it repeats, restart the app.")

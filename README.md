@@ -75,7 +75,7 @@ TrustGuard receives question + answer only. It never trusts Agent 1's sources.
 | `modules/claim_verifier.py` | LLM judgement and rule checks → final status | If nothing relevant is retrieved, the result is INSUFFICIENT_EVIDENCE **without calling the LLM**, so it can't "find" support in unrelated text. |
 | `modules/policy_rules.py` | Deterministic checks | Numbers and units, "not required" vs "required", whether the quote really exists in the source, and two **extraction checks** that guard the extractor AI (a claim must not contain numbers the answer never said; every number in the answer must appear in some claim). Rules **never upgrade** a verdict; a disagreement downgrades it and flags it for human review. |
 | `modules/pipeline.py` | Glue and the overall verdict | `run_two_agent()` = Agent 1 → handoff → TrustGuard. The most severe claim decides the headline, because one wrong fact makes an answer unsafe to act on. |
-| `app.py` | Streamlit UI | Employee only types a question. Shows both agents working live and **holds the answer until it has been checked**. Never shows a raw traceback. |
+| `app.py` | Streamlit UI | A chat with **Agent 1**, the product the employee uses. After each answer, **TrustGuard steps into the chat as a second agent**: "Answer intercepted", live checking, then the verdict, which is also stamped back onto the assistant's answer. Never shows a raw traceback. |
 
 ### Shared data contract
 Every verified claim produces the JSON agreed in the project plan (plus extras such as `rule_checks` and `needs_review`):
@@ -119,7 +119,7 @@ The dashboard (`app.py`) is built around five usability principles:
 | Principle | How the interface applies it |
 |---|---|
 | Perceivability | Every status is an icon, a word and a colour (never colour alone). Each claim sits side by side with the policy text it was checked against, so a contradiction is visible at a glance. Policy text is set in a serif face, so document text always looks different from interface text. |
-| Predictability | Numbered steps (1 Enter, 2 Verify, 3 Read) in the order things happen. Choosing an example only fills the boxes; nothing runs until **Verify answer** is pressed. |
+| Predictability | The chat always follows the same order: your question → Agent 1's answer (marked "Intercepted by TrustGuard") → TrustGuard's check → verdict badge on the answer. Each message is labelled with the agent that wrote it. |
 | Learnability | Plain-language help under each step and on each input, plus a status key next to the findings. |
 | Feedback | Loading message while the model starts, live progress (claims found, then checking), a completion toast, a notice when the inputs no longer match the results, and errors that say what to do. |
 | Consistency | One status vocabulary (✓ Supported, ✕ Contradicted, ? Insufficient evidence, ! Needs review) used in the verdict, the key, the cards and the sidebar. |
