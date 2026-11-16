@@ -4,7 +4,7 @@
     {
       "id": "A_correct",
       "scenario": "correct",
-      "question": "What are the reimbursement rules for overseas business travel?",
+      "question": "What is the daily allowance for overseas business travel, and do claims need manager approval?",
       "answer": "Employees can claim up to $150 per day for overseas business travel. All claims require manager approval.",
       "expected": [
         "SUPPORTED",
