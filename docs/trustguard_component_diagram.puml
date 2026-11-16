@@ -1,0 +1,126 @@
+@startuml TrustGuard_Component_Priority2
+' TrustGuard AI — component diagram of the implemented prototype (Priority 1 + 2)
+' Render: VS Code "PlantUML" extension (Alt+D) or https://www.plantuml.com/plantuml
+skinparam shadowing false
+skinparam componentStyle rectangle
+skinparam defaultFontName Arial
+skinparam defaultFontSize 12
+skinparam ArrowColor #555555
+skinparam ArrowFontSize 12
+skinparam ArrowFontColor #222222
+skinparam rectangleBorderColor #AAAAAA
+skinparam componentBackgroundColor #FFFFFF
+skinparam databaseBackgroundColor #FFFDF5
+skinparam nodesep 40
+skinparam ranksep 60
+skinparam legendBackgroundColor #FBFBFB
+skinparam legendBorderColor #CCCCCC
+skinparam legendFontSize 11
+
+title <b>TrustGuard AI — Component Diagram (implemented prototype, Priority 1 + 2)</b>\nOCBC Ignite Innovation Challenge 2026 · all policy documents are synthetic
+
+actor "Bank Employee" as Employee
+
+rectangle "Presentation Layer" #F7FBFF {
+  [Streamlit Web UI\n<size:10>chat · daily / audit mode</size>] as UI
+  [Feedback Widget\n<size:10>thumbs up / down + reason</size>] as FB
+}
+
+rectangle "Input Protection" #FFF4F4 {
+  [Layer 1 checks (code)\n<size:10>empty · too long · gibberish · injection</size>\n<size:10>personal data masking · rate limit</size>] as Guard1
+  [Layer 2 intent check (cheap LLM)\n<size:10>policy question · small talk · off topic</size>\n<size:10>unclear · action request · translation</size>] as Guard2
+}
+
+rectangle "Agent 1 — Banking AI Assistant" as A1Box #EFF6FF {
+  [Banking Assistant\n<size:10>reads top 2 passages, no version filter</size>\n<size:10>answer only, no citations</size>] as A1
+}
+
+rectangle "Knowledge Layer — one governed repository for both agents" #FFFAEE {
+  database "Policy Repository\n<size:10>synthetic SOP PDFs + metadata</size>\n<size:10>version · status · dates · applies_to</size>" as KB
+  [Search Index\n<size:10>sentence-transformer embeddings</size>] as IDX
+  database "Rules Tables\n<size:10>hand-written, per section</size>" as RT
+}
+
+rectangle "TrustGuard AI — Verification Service" as TGBox #E3EEFF {
+  rectangle "Verify the answer" #EAF2FF {
+    [0 Policy Validation\n<size:10>version in effect (code)</size>] as PV
+    [1 Claim Extractor\n<size:10>answer -> claims</size>] as CE
+    [2 Evidence Retriever\n<size:10>claim + question, sibling rules</size>] as ER
+    [3 Claim Verifier\n<size:10>5-step derivation, verdict,</size>\n<size:10>root cause</size>] as CV
+    [Policy Rules (code)\n<size:10>numbers · requirements · quotes</size>] as PR
+  }
+  rectangle "Complete and correct" #EAF2FF {
+    [4 Completeness Checker\n<size:10>essential steps missing?</size>] as CC
+    [5 Correction Generator\n<size:10>evidence-cited answer</size>] as CG
+    [6 Re-verifier\n<size:10>A citation · B rules table</size>\n<size:10>C entailment model</size>] as RV
+  }
+}
+
+rectangle "AI Models" #F4F4F4 {
+  [Cheap LLM\n<size:10>gemini-3.1-flash-lite</size>] as CheapLLM
+  [Stronger LLM\n<size:10>gemini-3.5-flash-lite</size>] as StrongLLM
+  [NLI Model (local)\n<size:10>nli-deberta-v3-xsmall</size>] as NLI
+}
+
+rectangle "Governance & Evaluation" #F7F3FF {
+  database "Event Logs\n<size:10>verifications · failures</size>\n<size:10>blocked inputs · feedback</size>" as LOG
+  [Evaluation Harness\n<size:10>run_eval · compute_metrics</size>\n<size:10>System A vs B · ablation</size>] as EVAL
+}
+
+' ---- main request flow ----
+Employee -down-> UI : <b>1</b>
+UI -down-> Guard1 : <b>2</b>
+Guard1 -right-> Guard2 : <b>3</b>
+Guard2 -down-> A1 : <b>4</b>
+A1 -right-> IDX : <b>5</b>
+IDX -down-> KB
+A1 -down-> PV : <b>6</b>
+
+PV -right-> CE
+CE -right-> ER
+ER -right-> CV
+CV -right-> PR
+CV -down-> CC : <b>7</b>
+CC -right-> CG
+CG -right-> RV : <b>8</b>
+ER -up-> IDX
+PV -up-> KB
+RV --> RT
+TGBox -up-> UI : <b>9</b>
+UI -up-> Employee : <b>10</b>
+
+' ---- which model each part uses ----
+Guard2 ..> CheapLLM
+A1Box ..> CheapLLM
+TGBox ..> StrongLLM : steps 1, 3, 4, 5
+RV ..> NLI : C
+
+' ---- governance ----
+UI -right- FB
+UI ..> LOG : <b>A</b>
+FB ..> LOG : <b>B</b>
+EVAL ..> TGBox : <b>C</b>
+LOG ..> EVAL : <b>D</b>
+
+' layout hints
+TGBox -[hidden]down-> StrongLLM
+StrongLLM -[hidden]right-> LOG
+
+legend right
+  |= Step |= Description |
+  | 1 | Employee types a question |
+  | 2 | Code checks: mask personal data, block injection / gibberish, rate limit |
+  | 3 | Cheap LLM classifies the message; only policy questions continue |
+  | 4 | Agent 1 receives the (English) question |
+  | 5 | Agent 1 reads its top 2 passages from the SAME repository, no version filter |
+  | 6 | Answer intercepted: TrustGuard receives question + answer only |
+  | 7 | Each claim derived from the policy in effect, compared; completeness checked |
+  | 8 | If wrong or incomplete: suggested answer, re-checked by A + B + C |
+  | 9 | Verdict, how the answer is reached, suggested answer back to the UI |
+  | 10 | Employee sees the result (daily mode: details only if there is a problem) |
+  | A, B | Verifications, blocked inputs and feedback logged |
+  | C | Evaluation runs the same pipeline (with Agent 1) on test questions |
+  | D | Logged real questions can be labelled and added to the test set |
+endlegend
+
+@enduml
