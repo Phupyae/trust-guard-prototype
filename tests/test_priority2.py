@@ -482,8 +482,52 @@ def test_prompts_keep_joint_requirements_together():
     into two claims, and each half was marked CONTRADICTED for leaving out the other."""
     from modules.claim_extractor import SYSTEM as EXTRACT
     from modules.claim_verifier import SYSTEM as VERIFY
-    assert "Do NOT split a joint requirement" in EXTRACT
+    assert "Do NOT split a joint APPROVAL" in EXTRACT
     assert "<full_answer>" in VERIFY and "Judge omissions against the whole answer" in VERIFY
+
+
+def test_extractor_splits_document_lists():
+    """Run 20261116 case J: the joint-requirement rule also covered documents, so 'a passport and
+    an Employment Pass' became ONE claim. Only joint approvals stay together; item lists are split."""
+    from modules.claim_extractor import SYSTEM as EXTRACT
+    assert "Do NOT split a joint requirement" not in EXTRACT
+    joint_rule = next(line for line in EXTRACT.splitlines() if "Do NOT split" in line)
+    assert "approv" in joint_rule.lower()
+    assert "passport" not in joint_rule and "document" not in joint_rule.lower()  # no longer an example of "keep together"
+    assert "DO split lists of documents or items into one claim per item" in EXTRACT
+
+
+def test_errors_resolved_on_resume_are_not_failures(tmp_path):
+    """Run 20261116: D_partial and I_fee errored on the Gemini rate limit, then finished on
+    --resume, but failures.md still listed them under 'Runs that errored'."""
+    sys.path.insert(0, str(ROOT / "eval"))
+    from compute_metrics import compute_and_write, merge, unresolved_errors
+    errors = [{"run_id": "D_partial-r1", "error": "LLMError: rate limit"},
+              {"run_id": "Z_never_finished-r1", "error": "LLMError: rate limit"}]
+    rows = [{"run_id": "A_correct-r1"}, {"run_id": "D_partial-r1"}]
+    assert [e["run_id"] for e in unresolved_errors(errors, rows)] == ["Z_never_finished-r1"]
+
+    folder = tmp_path / "run"
+    folder.mkdir()
+    (folder / "errors.json").write_text(json.dumps(errors), encoding="utf-8")
+    import csv
+    cols = ["run_id", "scenario", "agent1_answer", "tg_overall", "tg_message", "tg_missing", "correction_status",
+            "correction_text", "reverification", "agent1_s", "trustguard_s", "gold_answer_ok",
+            "gold_missing_step", "gold_correction_ok", "notes"]
+    with open(folder / "answers_to_label.csv", "w", newline="", encoding="utf-8-sig") as f:
+        w = csv.DictWriter(f, fieldnames=cols, restval="")
+        w.writeheader()
+        w.writerows([{"run_id": "A_correct-r1", "scenario": "correct", "tg_overall": "success",
+                      "correction_status": "not_needed", "trustguard_s": "5"},
+                     {"run_id": "D_partial-r1", "scenario": "missing_step", "tg_overall": "error",
+                      "correction_status": "not_needed", "trustguard_s": "5"}])
+    compute_and_write([folder])
+    failures = (folder / "failures.md").read_text(encoding="utf-8")
+    assert "Z_never_finished-r1" in failures and "D_partial-r1" not in failures
+    assert json.loads((folder / "metrics.json").read_text(encoding="utf-8"))["errors"] == 1
+    merged = merge("merged", [folder])
+    assert [e["run_id"] for e in json.loads((merged / "errors.json").read_text(encoding="utf-8"))] == [
+        "run:Z_never_finished-r1"]
 
 
 def test_verifier_receives_full_answer(retriever, ctx):

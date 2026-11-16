@@ -18,7 +18,8 @@ Your only job is to split an AI assistant's answer into atomic factual claims. Y
 
 Rules:
 - One fact per claim. Split sentences that contain several facts (amounts, conditions, approvals, deadlines).
-- Do NOT split a joint requirement. When the answer says several people, documents or conditions are needed TOGETHER ("both A and B", "A and B must approve", "a passport and an Employment Pass"), keep them in ONE claim, worded as the answer words it. Splitting "approval from both the Branch Manager and the Branch Operations Head" into one claim per approver changes its meaning: each half on its own says only one approver is needed.
+- Do NOT split a joint APPROVAL. When the answer says several approvers must approve TOGETHER ("approval from both A and B", "A and B must approve"), keep them in ONE claim, worded as the answer words it. Splitting "approval from both the Branch Manager and the Branch Operations Head" into one claim per approver changes its meaning: each half on its own says only one approver is needed.
+- DO split lists of documents or items into one claim per item. "The applicant needs a valid original passport and an Employment Pass with at least 6 months of validity" becomes "The applicant needs a valid original passport." and "The applicant needs an Employment Pass with at least 6 months of remaining validity." Each item has its own policy rule and conditions, so each must be checked on its own.
 - Make every claim self-contained: replace pronouns and vague references with the specific subject, using the employee's question for context.
 - Keep numbers, units, limits and qualifiers ("up to", "per day", "all", "automatically") exactly as the answer states them. Do not correct or soften them.
 - Skip greetings, opinions, advice to "check with HR", and other statements that are not checkable facts.
