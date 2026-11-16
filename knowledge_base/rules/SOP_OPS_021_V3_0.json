@@ -1,0 +1,13 @@
+{
+  "document_id": "SOP_OPS_021_V3_0",
+  "version": "3.0",
+  "sections": {
+    "3.1": {"quantities": [{"unit": "money", "value": 20000}], "roles": [], "required": ["identity verification"], "not_required": ["approval"]},
+    "3.2": {"quantities": [{"unit": "money", "value": 20000}, {"unit": "money", "value": 50000}], "roles": ["Branch Manager"], "required": ["approval"]},
+    "3.3": {"quantities": [{"unit": "money", "value": 50000}, {"unit": "working days", "value": 1}], "roles": ["Branch Manager", "Branch Operations Head"], "all_roles_required": true, "required": ["approval", "advance notice"]},
+    "4.1": {"quantities": [], "roles": [], "required": ["identity verification"]},
+    "4.2": {"quantities": [{"unit": "money", "value": 20000}], "roles": [], "required": ["purpose"]},
+    "5": {"quantities": [{"unit": "money", "value": 5000}], "roles": [], "required": ["letter of authorisation"]},
+    "6": {"quantities": [{"unit": "working days", "value": 1}], "roles": ["Branch Manager", "Group Compliance"], "required": []}
+  }
+}

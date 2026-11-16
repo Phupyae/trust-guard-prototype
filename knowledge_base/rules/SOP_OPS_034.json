@@ -1,0 +1,12 @@
+{
+  "document_id": "SOP_OPS_034",
+  "version": "1.4",
+  "sections": {
+    "3.1": {"quantities": [], "roles": [], "required": ["passport"]},
+    "3.2": {"quantities": [{"unit": "months", "value": 6}], "roles": [], "required": []},
+    "3.3": {"quantities": [{"unit": "months", "value": 3}], "roles": [], "required": ["proof of address"]},
+    "4": {"quantities": [], "roles": ["Branch Manager"], "required": ["approval", "enhanced due diligence"]},
+    "5": {"quantities": [{"unit": "money", "value": 1000}, {"unit": "money", "value": 500}], "roles": [], "required": []},
+    "6": {"quantities": [], "roles": ["Group Compliance"], "required": ["approval"]}
+  }
+}

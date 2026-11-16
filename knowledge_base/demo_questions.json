@@ -1,0 +1,19 @@
+{
+  "_note": "Optional example questions. Only the question is prepared; Agent 1 writes every answer live, so results differ between runs. Employees can type any question instead. 'why' says what each one tests.",
+  "questions": [
+    {"label": "$80,000 cash withdrawal", "question": "A customer wants to withdraw $80,000 in cash at the branch today. Who needs to approve it?",
+     "why": "v3.0 §3.3: Branch Manager AND Branch Operations Head, plus 1 business day notice. The repository still holds v2.1 (Branch Manager only, same day)."},
+    {"label": "$25,000 cash withdrawal", "question": "Does a $25,000 over-the-counter cash withdrawal need approval?",
+     "why": "v3.0 §3.2: Branch Manager approval above $20,000. Under superseded v2.1 the teller alone could process up to $30,000."},
+    {"label": "Foreign national account", "question": "What documents does a foreign national on an Employment Pass need to open a savings account at the branch?",
+     "why": "SOP_OPS_034 §3.1-3.3: passport, pass with 6 months validity, proof of address within 3 months. Three required items, easy to leave one out."},
+    {"label": "Fee waiver of $300", "question": "Can a Customer Service Officer waive a $300 fee for a customer?",
+     "why": "SOP_OPS_047: CSO up to $50 only; $50-$500 needs the Branch Manager."},
+    {"label": "Daily travel allowance", "question": "How much can I claim per day for an overseas business trip, and does my claim need approval?",
+     "why": "Travel v1 and v2 disagree ($120 + auto-approval vs $150 + manager approval)."},
+    {"label": "Rule on a past date", "question": "What was the hotel limit for overseas business trips in 2025?",
+     "why": "Policy validation: the question names 2025, so the superseded v1.0 ($200/night) is the version in effect then."},
+    {"label": "Not covered by policy", "question": "How much paid maternity leave do employees get?",
+     "why": "No document covers this. Expect the assistant to decline, or TrustGuard to return Insufficient evidence."}
+  ]
+}

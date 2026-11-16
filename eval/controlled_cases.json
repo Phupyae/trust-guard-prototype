@@ -1,0 +1,176 @@
+{
+  "_note": "CONTROLLED cases: the answers here are FIXED (written by the team) and only used as a regression check of TrustGuard on its own (it should catch these known errors). The main evaluation uses LIVE answers from Agent 1 on eval/questions.json. Report the two separately.",
+  "cases": [
+    {
+      "id": "A_correct",
+      "scenario": "correct",
+      "question": "What are the reimbursement rules for overseas business travel?",
+      "answer": "Employees can claim up to $150 per day for overseas business travel. All claims require manager approval.",
+      "expected": [
+        "SUPPORTED",
+        "SUPPORTED"
+      ],
+      "expected_missing_step": false,
+      "relevant_evidence": [
+        "TRAVEL_POLICY_V2 \u00a74.2",
+        "TRAVEL_POLICY_V2 \u00a77.2",
+        "TRAVEL_POLICY_V2 \u00a77.1"
+      ]
+    },
+    {
+      "id": "B_incorrect",
+      "scenario": "approval",
+      "question": "What are the reimbursement rules for overseas business travel?",
+      "answer": "Employees can claim up to $200 per day. All claims are automatically approved.",
+      "expected": [
+        "CONTRADICTED",
+        "CONTRADICTED"
+      ],
+      "expected_missing_step": false,
+      "relevant_evidence": [
+        "TRAVEL_POLICY_V2 \u00a74.2",
+        "TRAVEL_POLICY_V2 \u00a77.2",
+        "TRAVEL_POLICY_V2 \u00a77.1"
+      ]
+    },
+    {
+      "id": "C_unknown",
+      "scenario": "missing_evidence",
+      "question": "How much paid maternity leave do employees get?",
+      "answer": "Employees are entitled to 16 weeks of paid maternity leave.",
+      "expected": [
+        "INSUFFICIENT_EVIDENCE"
+      ],
+      "expected_missing_step": false,
+      "relevant_evidence": []
+    },
+    {
+      "id": "D_partial",
+      "scenario": "approval",
+      "question": "When do I need to submit my travel claim and do I need receipts?",
+      "answer": "Travel claims must be submitted within 30 calendar days of returning. Receipts are not required for any expense.",
+      "expected": [
+        "SUPPORTED",
+        "CONTRADICTED"
+      ],
+      "expected_missing_step": false,
+      "relevant_evidence": [
+        "TRAVEL_POLICY_V2 \u00a75.1",
+        "TRAVEL_POLICY_V2 \u00a75.2"
+      ]
+    },
+    {
+      "id": "E_outdated",
+      "scenario": "outdated",
+      "question": "What is the hotel limit and claim deadline for overseas trips?",
+      "answer": "Hotels are reimbursed up to $200 per night. Claims can be submitted within 60 days of returning.",
+      "expected": [
+        "CONTRADICTED",
+        "CONTRADICTED"
+      ],
+      "expected_missing_step": false,
+      "relevant_evidence": [
+        "TRAVEL_POLICY_V2 \u00a74.3",
+        "TRAVEL_POLICY_V2 \u00a75.1"
+      ]
+    },
+    {
+      "id": "F_process",
+      "scenario": "correct",
+      "question": "How long does Finance take to process an approved expense claim?",
+      "answer": "Finance Operations processes approved claims within 10 working days of approval, and reimbursements are paid with the next monthly payroll.",
+      "expected": [
+        "SUPPORTED",
+        "SUPPORTED"
+      ],
+      "expected_missing_step": false,
+      "relevant_evidence": [
+        "SOP_FIN_012 \u00a73.4",
+        "SOP_FIN_012 \u00a73.5"
+      ]
+    },
+    {
+      "id": "G_cash_outdated",
+      "scenario": "outdated",
+      "question": "A customer wants to withdraw $80,000 in cash at the branch today. Who needs to approve it?",
+      "answer": "Withdrawals above $30,000 require Branch Manager approval. The customer can collect the cash on the same day.",
+      "expected": [
+        "CONTRADICTED",
+        "CONTRADICTED"
+      ],
+      "expected_missing_step": true,
+      "relevant_evidence": [
+        "SOP_OPS_021_V3_0 \u00a73.3",
+        "SOP_OPS_021_V3_0 \u00a73.2"
+      ]
+    },
+    {
+      "id": "H_cash_correct",
+      "scenario": "correct",
+      "question": "A customer wants to withdraw $80,000 in cash at the branch today. Who needs to approve it?",
+      "answer": "Withdrawals above $50,000 need approval from both the Branch Manager and the Branch Operations Head. The customer must give 1 business day of advance notice.",
+      "expected": [
+        "SUPPORTED",
+        "SUPPORTED"
+      ],
+      "expected_missing_step": false,
+      "relevant_evidence": [
+        "SOP_OPS_021_V3_0 \u00a73.3"
+      ]
+    },
+    {
+      "id": "I_fee_wrong_approver",
+      "scenario": "approval",
+      "question": "Can a Customer Service Officer waive a $300 fee for a customer?",
+      "answer": "Yes. A Customer Service Officer can waive fees of up to $500 per customer in a 12-month period.",
+      "expected": [
+        "CONTRADICTED"
+      ],
+      "expected_missing_step": true,
+      "relevant_evidence": [
+        "SOP_OPS_047 \u00a73.1",
+        "SOP_OPS_047 \u00a73.2"
+      ]
+    },
+    {
+      "id": "J_fn_missing_doc",
+      "scenario": "missing_step",
+      "question": "What documents does a foreign national on an Employment Pass need to open a savings account at the branch?",
+      "answer": "The applicant needs a valid original passport and an Employment Pass with at least 6 months of remaining validity.",
+      "expected": [
+        "SUPPORTED",
+        "SUPPORTED"
+      ],
+      "expected_missing_step": true,
+      "relevant_evidence": [
+        "SOP_OPS_034 \u00a73.1",
+        "SOP_OPS_034 \u00a73.2",
+        "SOP_OPS_034 \u00a73.3"
+      ]
+    },
+    {
+      "id": "K_atm_not_covered",
+      "scenario": "missing_evidence",
+      "question": "What is the daily ATM withdrawal limit for customers?",
+      "answer": "Customers can withdraw up to $3,000 per day from ATMs.",
+      "expected": [
+        "INSUFFICIENT_EVIDENCE"
+      ],
+      "expected_missing_step": false,
+      "relevant_evidence": []
+    },
+    {
+      "id": "L_hotel_2025",
+      "scenario": "outdated",
+      "question": "What was the hotel limit for overseas business trips in 2025?",
+      "answer": "In 2025, hotels were reimbursed up to $200 per night.",
+      "expected": [
+        "SUPPORTED"
+      ],
+      "expected_missing_step": false,
+      "relevant_evidence": [
+        "TRAVEL_POLICY_V1 \u00a74.3"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,367 @@
+{
+  "_note": "LIVE test set. Only the questions are prepared. Agent 1 answers each one live and TrustGuard checks that live answer, so no answer is scripted. A person then labels the claims and answers (see eval/README.md). key_facts and relevant_evidence are the labeller's reference, written from the synthetic policies. All policies are SYNTHETIC, not OCBC policy. Dates assume the evaluation runs after 1 Jul 2026.",
+  "questions": [
+    {
+      "id": "C01",
+      "scenario": "correct",
+      "question": "Do I need receipts for expenses on an overseas business trip?",
+      "key_facts": [
+        "Receipts are required for every individual expense above $25",
+        "The daily allowance does not need receipts"
+      ],
+      "relevant_evidence": [
+        "TRAVEL_POLICY_V2 §5.2"
+      ],
+      "expected_result": "Claims matching §5.2 SUPPORTED. Saying receipts are needed for everything is CONTRADICTED.",
+      "explanation": "Only one version has a receipts rule, so a correct answer is likely; tests that correct claims are not flagged."
+    },
+    {
+      "id": "C02",
+      "scenario": "correct",
+      "question": "How long does Finance take to process an approved expense claim, and when is the money paid?",
+      "key_facts": [
+        "Finance Operations processes approved claims within 10 working days of approval",
+        "Paid with the next monthly payroll cycle"
+      ],
+      "relevant_evidence": [
+        "SOP_FIN_012 §3.4",
+        "SOP_FIN_012 §3.5"
+      ],
+      "expected_result": "Both claims SUPPORTED if the figures match.",
+      "explanation": "Two facts in two neighbouring sections."
+    },
+    {
+      "id": "C03",
+      "scenario": "correct",
+      "question": "How long does the bank keep expense claim records?",
+      "key_facts": [
+        "Finance Operations retains claim records and receipts for 7 years"
+      ],
+      "relevant_evidence": [
+        "SOP_FIN_012 §5"
+      ],
+      "expected_result": "SUPPORTED.",
+      "explanation": "Single-fact baseline."
+    },
+    {
+      "id": "C04",
+      "scenario": "correct",
+      "question": "Can stamp duty charged on a customer's account be waived?",
+      "key_facts": [
+        "Charges collected on behalf of government agencies, such as stamp duty, must not be waived"
+      ],
+      "relevant_evidence": [
+        "SOP_OPS_047 §4.2"
+      ],
+      "expected_result": "SUPPORTED if the answer says it cannot be waived; CONTRADICTED otherwise.",
+      "explanation": "A prohibition rather than a number."
+    },
+    {
+      "id": "C05",
+      "scenario": "correct",
+      "question": "How many times can a customer's credit card late payment charge be waived in a year?",
+      "key_facts": [
+        "At most 2 times per customer in any 12-month period"
+      ],
+      "relevant_evidence": [
+        "SOP_OPS_047 §4.1"
+      ],
+      "expected_result": "SUPPORTED if 2 times in 12 months.",
+      "explanation": "Count plus period."
+    },
+    {
+      "id": "C06",
+      "scenario": "correct",
+      "question": "What is the minimum initial deposit for a foreign national with an Employment Pass opening a savings account?",
+      "key_facts": [
+        "$500 for applicants holding a valid Singapore pass",
+        "($1,000 applies only to non-residents)"
+      ],
+      "relevant_evidence": [
+        "SOP_OPS_034 §5"
+      ],
+      "expected_result": "SUPPORTED if $500; CONTRADICTED if $1,000.",
+      "explanation": "Two amounts in one section: tests picking the right condition."
+    },
+    {
+      "id": "A01",
+      "scenario": "approval",
+      "question": "A customer wants to withdraw $80,000 in cash at the branch today. Who needs to approve it?",
+      "key_facts": [
+        "Branch Manager AND Branch Operations Head must approve (above $50,000)",
+        "1 business day of advance notice is required, so not the same day"
+      ],
+      "relevant_evidence": [
+        "SOP_OPS_021_V3_0 §3.3",
+        "SOP_OPS_021_V3_0 §3.2"
+      ],
+      "expected_result": "Branch-Manager-only or same-day claims CONTRADICTED; missing notice flagged as a missing step.",
+      "explanation": "Main demo case. v2.1 is still in the repository (Branch Manager only above $30,000, same day)."
+    },
+    {
+      "id": "A02",
+      "scenario": "approval",
+      "question": "Does a $25,000 over-the-counter cash withdrawal need any approval?",
+      "key_facts": [
+        "Yes: above $20,000 up to $50,000 needs Branch Manager approval",
+        "Purpose of withdrawal must be recorded above $20,000"
+      ],
+      "relevant_evidence": [
+        "SOP_OPS_021_V3_0 §3.2",
+        "SOP_OPS_021_V3_0 §4.2"
+      ],
+      "expected_result": "'No approval needed' (v2.1: teller up to $30,000) is CONTRADICTED.",
+      "explanation": "Outdated threshold leads to a wrong approval requirement."
+    },
+    {
+      "id": "A03",
+      "scenario": "approval",
+      "question": "Can a Customer Service Officer waive a $300 fee for a customer?",
+      "key_facts": [
+        "No: a CSO can waive up to $50 per customer in 12 months",
+        "$50 to $500 needs Branch Manager approval"
+      ],
+      "relevant_evidence": [
+        "SOP_OPS_047 §3.1",
+        "SOP_OPS_047 §3.2"
+      ],
+      "expected_result": "'Yes, the CSO can' is CONTRADICTED.",
+      "explanation": "Authority limits across neighbouring sections."
+    },
+    {
+      "id": "A04",
+      "scenario": "approval",
+      "question": "Who has to approve a fee waiver of $800 for one customer?",
+      "key_facts": [
+        "Regional Head of Branch Banking (above $500 in 12 months)"
+      ],
+      "relevant_evidence": [
+        "SOP_OPS_047 §3.3"
+      ],
+      "expected_result": "Branch Manager is CONTRADICTED.",
+      "explanation": "Highest band."
+    },
+    {
+      "id": "A05",
+      "scenario": "approval",
+      "question": "Can I fly business class on a 10-hour business flight to London?",
+      "key_facts": [
+        "Allowed for flights of 8 hours or longer",
+        "Only with Department Head approval obtained before booking"
+      ],
+      "relevant_evidence": [
+        "TRAVEL_POLICY_V2 §4.4"
+      ],
+      "expected_result": "Saying yes without the approval condition: claim may be SUPPORTED but approval flagged as missing.",
+      "explanation": "Condition that a short answer tends to drop."
+    },
+    {
+      "id": "A06",
+      "scenario": "approval",
+      "question": "My overseas trip claim totals $3,000. Who needs to approve it?",
+      "key_facts": [
+        "Direct manager AND Department Head (above $2,000 per trip)"
+      ],
+      "relevant_evidence": [
+        "TRAVEL_POLICY_V2 §7.1"
+      ],
+      "expected_result": "Manager-only is CONTRADICTED (missing approver).",
+      "explanation": "Dual approval above a threshold."
+    },
+    {
+      "id": "A07",
+      "scenario": "approval",
+      "question": "Can a branch officer open an account for a non-resident foreigner who has no Singapore pass without anyone else's approval?",
+      "key_facts": [
+        "No: non-resident accounts need enhanced due diligence and Branch Manager approval before opening"
+      ],
+      "relevant_evidence": [
+        "SOP_OPS_034 §4"
+      ],
+      "expected_result": "'Yes' is CONTRADICTED.",
+      "explanation": "Approval requirement framed as a yes/no question."
+    },
+    {
+      "id": "O01",
+      "scenario": "outdated",
+      "question": "How much can I claim per day on an overseas business trip, and does the claim need approval?",
+      "key_facts": [
+        "Up to $150 per day",
+        "All claims require manager approval; none are approved automatically"
+      ],
+      "relevant_evidence": [
+        "TRAVEL_POLICY_V2 §4.2",
+        "TRAVEL_POLICY_V2 §7.2",
+        "TRAVEL_POLICY_V2 §7.1"
+      ],
+      "expected_result": "$120/day or auto-approval (v1.0) is CONTRADICTED, with the superseded version named as the likely cause.",
+      "explanation": "v1 and v2 are both in the repository."
+    },
+    {
+      "id": "O02",
+      "scenario": "outdated",
+      "question": "What is the hotel limit per night on an overseas business trip?",
+      "key_facts": [
+        "$250 per night",
+        "Above that needs prior written Department Head approval"
+      ],
+      "relevant_evidence": [
+        "TRAVEL_POLICY_V2 §4.3"
+      ],
+      "expected_result": "$200 (v1.0) is CONTRADICTED.",
+      "explanation": "Same section number in both versions."
+    },
+    {
+      "id": "O03",
+      "scenario": "outdated",
+      "question": "What is the deadline for submitting an overseas travel claim?",
+      "key_facts": [
+        "Within 30 calendar days of returning",
+        "Late claims rejected unless the Department Head grants a written exception"
+      ],
+      "relevant_evidence": [
+        "TRAVEL_POLICY_V2 §5.1"
+      ],
+      "expected_result": "60 days (v1.0) is CONTRADICTED.",
+      "explanation": "Deadline changed between versions."
+    },
+    {
+      "id": "O04",
+      "scenario": "outdated",
+      "question": "Up to what amount can a teller process a cash withdrawal without extra approval?",
+      "key_facts": [
+        "Up to $20,000 (v3.0)"
+      ],
+      "relevant_evidence": [
+        "SOP_OPS_021_V3_0 §3.1"
+      ],
+      "expected_result": "$30,000 (v2.1) is CONTRADICTED.",
+      "explanation": "Threshold lowered in v3.0."
+    },
+    {
+      "id": "O05",
+      "scenario": "outdated",
+      "question": "What was the hotel limit for overseas business trips in 2025?",
+      "key_facts": [
+        "$200 per night: v1.0 was in effect in 2025"
+      ],
+      "relevant_evidence": [
+        "TRAVEL_POLICY_V1 §4.3"
+      ],
+      "expected_result": "Policy validation should pick v1.0 for 2025, so $200 is SUPPORTED and $250 is CONTRADICTED.",
+      "explanation": "Tests the as-of-date logic: the 'old' figure is correct here."
+    },
+    {
+      "id": "M01",
+      "scenario": "missing_step",
+      "question": "What documents does a foreign national on an Employment Pass need to open a savings account at the branch?",
+      "key_facts": [
+        "Valid original passport",
+        "Employment Pass with at least 6 months of remaining validity",
+        "Proof of residential address dated within the last 3 months"
+      ],
+      "relevant_evidence": [
+        "SOP_OPS_034 §3.1",
+        "SOP_OPS_034 §3.2",
+        "SOP_OPS_034 §3.3"
+      ],
+      "expected_result": "Any of the three missing is flagged as a missing step.",
+      "explanation": "Three required items in three sections; a 2-passage assistant can miss one."
+    },
+    {
+      "id": "M02",
+      "scenario": "missing_step",
+      "question": "What must a teller do if they suspect a cash withdrawal is part of a scam?",
+      "key_facts": [
+        "Pause the transaction",
+        "Escalate to the Branch Manager immediately",
+        "Branch Manager reports to Group Compliance within 1 business day"
+      ],
+      "relevant_evidence": [
+        "SOP_OPS_021_V3_0 §6"
+      ],
+      "expected_result": "Leaving out the Group Compliance report is a missing step.",
+      "explanation": "Multi-step procedure."
+    },
+    {
+      "id": "M03",
+      "scenario": "missing_step",
+      "question": "Can someone withdraw cash on behalf of a customer at the branch?",
+      "key_facts": [
+        "Needs a signed Letter of Authorisation",
+        "Third party's original NRIC or passport",
+        "Limited to $5,000 per day"
+      ],
+      "relevant_evidence": [
+        "SOP_OPS_021_V3_0 §5"
+      ],
+      "expected_result": "A 'yes' without the conditions is incomplete.",
+      "explanation": "Conditions attached to a permission."
+    },
+    {
+      "id": "M04",
+      "scenario": "missing_step",
+      "question": "What are the steps to submit a staff expense claim?",
+      "key_facts": [
+        "Complete the claim form in the Expense Portal",
+        "Attach itemised receipts above $25",
+        "Direct manager approves within 5 working days",
+        "Finance processes within 10 working days",
+        "Paid with next payroll"
+      ],
+      "relevant_evidence": [
+        "SOP_FIN_012 §3.1",
+        "SOP_FIN_012 §3.2",
+        "SOP_FIN_012 §3.3",
+        "SOP_FIN_012 §3.4",
+        "SOP_FIN_012 §3.5"
+      ],
+      "expected_result": "Missing steps flagged (completeness lists at most 4).",
+      "explanation": "Long procedure; tests the 4-element cap honestly."
+    },
+    {
+      "id": "E01",
+      "scenario": "missing_evidence",
+      "question": "How much paid maternity leave do employees get?",
+      "key_facts": [
+        "Not covered by any policy in the repository"
+      ],
+      "relevant_evidence": [],
+      "expected_result": "INSUFFICIENT_EVIDENCE for any figure; no correction offered.",
+      "explanation": "Topic outside the repository."
+    },
+    {
+      "id": "E02",
+      "scenario": "missing_evidence",
+      "question": "What is the daily ATM withdrawal limit for customers?",
+      "key_facts": [
+        "Not covered: the cash withdrawal SOP explicitly excludes ATM withdrawals"
+      ],
+      "relevant_evidence": [],
+      "expected_result": "INSUFFICIENT_EVIDENCE (a related SOP exists but does not apply).",
+      "explanation": "Tests applicability: similar wording, wrong scope."
+    },
+    {
+      "id": "E03",
+      "scenario": "missing_evidence",
+      "question": "Who can waive fees on a corporate account?",
+      "key_facts": [
+        "Not covered: the fee waiver SOP excludes corporate accounts"
+      ],
+      "relevant_evidence": [],
+      "expected_result": "INSUFFICIENT_EVIDENCE; applying the individual-account matrix would be wrong.",
+      "explanation": "Out-of-scope customer type."
+    },
+    {
+      "id": "E04",
+      "scenario": "missing_evidence",
+      "question": "Do staff get a 13th-month bonus?",
+      "key_facts": [
+        "Not covered by any policy in the repository"
+      ],
+      "relevant_evidence": [],
+      "expected_result": "INSUFFICIENT_EVIDENCE.",
+      "explanation": "Common HR topic the assistant may answer from general knowledge."
+    }
+  ]
+}

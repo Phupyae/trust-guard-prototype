@@ -1,0 +1,12 @@
+{
+  "document_id": "SOP_OPS_047",
+  "version": "2.0",
+  "sections": {
+    "3.1": {"quantities": [{"unit": "money", "value": 50}, {"unit": "months", "value": 12}], "roles": ["Customer Service Officer"], "required": []},
+    "3.2": {"quantities": [{"unit": "money", "value": 50}, {"unit": "money", "value": 500}, {"unit": "months", "value": 12}], "roles": ["Branch Manager"], "required": ["approval"]},
+    "3.3": {"quantities": [{"unit": "money", "value": 500}, {"unit": "months", "value": 12}], "roles": ["Regional Head"], "required": ["approval"]},
+    "4.1": {"quantities": [{"unit": "times", "value": 2}, {"unit": "months", "value": 12}], "roles": [], "required": []},
+    "4.2": {"quantities": [], "roles": [], "required": []},
+    "5": {"quantities": [], "roles": [], "required": ["recording"]}
+  }
+}
