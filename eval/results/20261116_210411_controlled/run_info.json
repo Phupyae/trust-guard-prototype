@@ -1,0 +1,25 @@
+{
+  "kind": "controlled",
+  "started": "20261116_210411",
+  "provider": "gemini",
+  "trustguard_model": "gemini-3.5-flash-lite",
+  "agent1_model": "",
+  "agent1_scope": "all",
+  "retriever": "sentence-transformers/all-MiniLM-L6-v2",
+  "nli": "cross-encoder/nli-deberta-v3-xsmall",
+  "runs": 1,
+  "reused_from": "",
+  "args": {
+    "runs": 1,
+    "limit": 0,
+    "only": "",
+    "delay": 10.0,
+    "tg_model": "",
+    "agent1_model": "",
+    "agent1_scope": "all",
+    "mock": false,
+    "tfidf": false,
+    "no_nli": false,
+    "reuse": null
+  }
+}

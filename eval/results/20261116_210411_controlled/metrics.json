@@ -1,0 +1,204 @@
+{
+  "run_info": {
+    "kind": "controlled",
+    "started": "20261116_210411",
+    "provider": "gemini",
+    "trustguard_model": "gemini-3.5-flash-lite",
+    "agent1_model": "",
+    "agent1_scope": "all",
+    "retriever": "sentence-transformers/all-MiniLM-L6-v2",
+    "nli": "cross-encoder/nli-deberta-v3-xsmall",
+    "runs": 1,
+    "reused_from": "",
+    "args": {
+      "runs": 1,
+      "limit": 0,
+      "only": "",
+      "delay": 10.0,
+      "tg_model": "",
+      "agent1_model": "",
+      "agent1_scope": "all",
+      "mock": false,
+      "tfidf": false,
+      "no_nli": false,
+      "reuse": null
+    }
+  },
+  "claims": {
+    "claims_total": 20,
+    "claims_labelled": 20,
+    "accuracy": {
+      "value": 1.0,
+      "num": 20,
+      "den": 20
+    },
+    "per_class": {
+      "SUPPORTED": {
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0,
+        "support": 10
+      },
+      "CONTRADICTED": {
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0,
+        "support": 8
+      },
+      "INSUFFICIENT_EVIDENCE": {
+        "precision": 1.0,
+        "recall": 1.0,
+        "f1": 1.0,
+        "support": 2
+      }
+    },
+    "macro_f1": 1.0,
+    "confusion": {
+      "SUPPORTED": {
+        "SUPPORTED": 10,
+        "CONTRADICTED": 0,
+        "INSUFFICIENT_EVIDENCE": 0
+      },
+      "CONTRADICTED": {
+        "SUPPORTED": 0,
+        "CONTRADICTED": 8,
+        "INSUFFICIENT_EVIDENCE": 0
+      },
+      "INSUFFICIENT_EVIDENCE": {
+        "SUPPORTED": 0,
+        "CONTRADICTED": 0,
+        "INSUFFICIENT_EVIDENCE": 2
+      }
+    },
+    "critical_error_recall": {
+      "value": 1.0,
+      "num": 8,
+      "den": 8
+    },
+    "critical_error_recall_lenient": {
+      "value": 1.0,
+      "num": 8,
+      "den": 8
+    },
+    "false_positive_rate": {
+      "value": 0.0,
+      "num": 0,
+      "den": 10
+    },
+    "citation_accuracy_auto": {
+      "value": 1.0,
+      "num": 18,
+      "den": 18
+    }
+  },
+  "answers": {
+    "answers_total": 12,
+    "answers_labelled": 12,
+    "agent1_wrong_rate": {
+      "value": 0.667,
+      "num": 8,
+      "den": 12
+    },
+    "system_a_unflagged_wrong": {
+      "value": 0.667,
+      "num": 8,
+      "den": 12
+    },
+    "system_b_unflagged_wrong": {
+      "value": 0.0,
+      "num": 0,
+      "den": 12
+    },
+    "wrong_answer_detection_rate": {
+      "value": 1.0,
+      "num": 8,
+      "den": 8
+    },
+    "false_alarm_rate": {
+      "value": 0.0,
+      "num": 0,
+      "den": 4
+    },
+    "incomplete_answer_recall": {
+      "value": 1.0,
+      "num": 3,
+      "den": 3
+    },
+    "incomplete_false_flag_rate": {
+      "value": 0.0,
+      "num": 0,
+      "den": 9
+    },
+    "corrections_suggested": 6,
+    "correction_support_rate": {
+      "value": 1.0,
+      "num": 6,
+      "den": 6
+    },
+    "correction_support_rate_incl_partial": {
+      "value": 1.0,
+      "num": 6,
+      "den": 6
+    },
+    "correction_accuracy": {
+      "value": null,
+      "num": 0,
+      "den": 0
+    },
+    "reverification_precision": {
+      "value": null,
+      "num": 0,
+      "den": 0
+    },
+    "wrong_answers_fixed_by_correction": {
+      "value": null,
+      "num": 0,
+      "den": 0
+    },
+    "trustguard_seconds": {
+      "mean": 11.69,
+      "median": 12.23,
+      "p95": 17.05,
+      "n": 12
+    },
+    "agent1_seconds_mean": null,
+    "by_scenario": {
+      "approval": {
+        "answers": 3,
+        "flagged": 3,
+        "labelled": 3,
+        "agent1_wrong": 3,
+        "wrong_caught": 3
+      },
+      "correct": {
+        "answers": 3,
+        "flagged": 0,
+        "labelled": 3,
+        "agent1_wrong": 0,
+        "wrong_caught": 0
+      },
+      "missing_evidence": {
+        "answers": 2,
+        "flagged": 2,
+        "labelled": 2,
+        "agent1_wrong": 2,
+        "wrong_caught": 2
+      },
+      "missing_step": {
+        "answers": 1,
+        "flagged": 1,
+        "labelled": 1,
+        "agent1_wrong": 1,
+        "wrong_caught": 1
+      },
+      "outdated": {
+        "answers": 3,
+        "flagged": 2,
+        "labelled": 3,
+        "agent1_wrong": 2,
+        "wrong_caught": 2
+      }
+    }
+  },
+  "errors": 0
+}
