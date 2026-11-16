@@ -542,3 +542,112 @@ def test_verifier_receives_full_answer(retriever, ctx):
                   "Who approves an $80,000 withdrawal?", retriever, ScriptedLLM(record_verdict=verdict), ctx,
                   answer=answer)
     assert f"<full_answer>{answer}</full_answer>" in seen["user"]
+
+
+# ---------- regressions from 20261116_201425_controlled: method C on band sentences ----------
+Q_CASH = "A customer wants to withdraw $80,000 in cash at the branch today. Who needs to approve it?"
+Q_FEE = "Can a Customer Service Officer waive a $300 fee for a customer?"
+Q31_FEE = "A Customer Service Officer may waive fees of up to $50 per customer in any 12-month period."
+Q32_FEE = "Waivers above $50 and up to $500 per customer in any 12-month period require Branch Manager approval."
+NOTICE = "The customer must give 1 business day of advance notice so that the branch can arrange the cash."
+G_S1 = "An $80,000 withdrawal requires approval from both the Branch Manager and the Branch Operations Head."
+G_S2 = "The customer must also give 1 business day of advance notice so that the branch can arrange the cash."
+I_S1 = ("A Customer Service Officer cannot waive a $300 fee because they may only waive fees of up to $50 per "
+        "customer in any 12-month period.")
+
+
+class RecordingNLI:
+    """Like the real small model: entails only a hypothesis that is word for word in the premise."""
+    def __init__(self):
+        self.hypotheses = []
+
+    def check(self, premise, hypothesis):
+        self.hypotheses.append(hypothesis)
+        if policy_rules.quote_in_passage(hypothesis, premise):
+            return {"label": "entailment", "entailment": 0.99}
+        return {"label": "neutral", "entailment": 0.01}
+
+
+def _reverify_one(chunks, ctx, nli, question, text, doc, sec, quote):
+    by_id = {c.chunk_id: c for c in chunks}
+    out = reverify(Correction("suggested", sentences=[_sentence(text, doc, sec, quote)]), by_id, ctx, nli,
+                   question=question)
+    return out, out.sentences[0].checks
+
+
+def test_band_rule_passes_question_amount_inside_band(chunks, ctx):
+    """G_cash_outdated: '$80,000 withdrawal requires...' vs 'above $50,000' was NLI-neutral."""
+    out, checks = _reverify_one(chunks, ctx, RecordingNLI(), Q_CASH, G_S1, "SOP_OPS_021_V3_0", "3.3", Q33)
+    assert checks["C_entailment"]["result"] == "pass", checks
+    assert "Applies the policy band (above $50,000) to the $80,000 in the question; band checked in code" \
+        in checks["C_entailment"]["detail"]
+    assert out.reverification == "confirmed"
+
+
+def test_band_rule_passes_cannot_approve_amount_outside_band(chunks, ctx):
+    """I_fee_wrong_approver: 'CSO cannot waive a $300 fee ... up to $50' - $300 is OUTSIDE the band."""
+    out, checks = _reverify_one(chunks, ctx, RecordingNLI(), Q_FEE, I_S1, "SOP_OPS_047", "3.1", Q31_FEE)
+    assert checks["A_citation"]["result"] == "pass" and checks["B_rules"]["result"] == "pass", checks
+    assert checks["C_entailment"]["result"] == "pass", checks
+    assert "to the $300 in the question; band checked in code" in checks["C_entailment"]["detail"]
+    assert out.reverification == "confirmed"
+
+
+def test_band_rule_does_not_pass_wrong_approver(chunks, ctx):
+    """'A Branch Manager cannot waive a $300 fee' is false. Cited to §3.1, B's role check fails it and
+    the band rule never runs; cited to §3.2 (BM's band, $50-$500), the band rule itself fails it."""
+    s = "A Branch Manager cannot waive a $300 fee."
+    out, checks = _reverify_one(chunks, ctx, RecordingNLI(), Q_FEE, s, "SOP_OPS_047", "3.1", Q31_FEE)
+    assert checks["B_rules"]["result"] == "fail"
+    assert checks["C_entailment"]["result"] == "uncertain"  # band rule not applied
+    assert out.reverification == "not_confirmed"
+    out, checks = _reverify_one(chunks, ctx, RecordingNLI(), Q_FEE, s, "SOP_OPS_047", "3.2", Q32_FEE)
+    assert checks["B_rules"]["result"] == "pass"
+    assert checks["C_entailment"]["result"] == "fail", checks
+    assert out.reverification == "not_confirmed"
+
+
+def test_band_rule_fails_amount_on_wrong_side_of_band(chunks, ctx):
+    q = "A customer wants to withdraw $30,000 in cash today. Who needs to approve it?"
+    s = "A $30,000 withdrawal requires approval from both the Branch Manager and the Branch Operations Head."
+    out, checks = _reverify_one(chunks, ctx, RecordingNLI(), q, s, "SOP_OPS_021_V3_0", "3.3", Q33)
+    assert checks["C_entailment"]["result"] == "fail" and out.reverification == "not_confirmed"
+
+
+def test_contradiction_still_fails_with_band_rule(chunks, ctx):
+    out, checks = _reverify_one(chunks, ctx, FakeNLI("contradiction"), Q_CASH, G_S1, "SOP_OPS_021_V3_0", "3.3",
+                                Q33)
+    assert checks["C_entailment"]["result"] == "fail"
+    assert "band" not in checks["C_entailment"]["detail"]
+    assert out.reverification == "not_confirmed"
+
+
+def test_connective_also_is_stripped_before_nli(chunks, ctx):
+    """G_cash_outdated: 'must ALSO give 1 business day...' scored 0.04; without 'also', 0.99."""
+    nli = RecordingNLI()
+    out, checks = _reverify_one(chunks, ctx, nli, Q_CASH, G_S2, "SOP_OPS_021_V3_0", "3.3", NOTICE)
+    assert NOTICE in nli.hypotheses and G_S2 not in nli.hypotheses
+    assert checks["C_entailment"]["result"] == "pass"
+    assert "Checked without the connective word(s): also." in checks["C_entailment"]["detail"]
+    assert out.sentences[0].text == G_S2  # the text shown to the user is unchanged
+    assert out.reverification == "confirmed"
+
+
+@pytest.mark.parametrize("text,expected", [
+    (G_S2, NOTICE),
+    ("Additionally, the customer must give notice.", "The customer must give notice."),
+    ("In addition, the customer must give notice.", "The customer must give notice."),
+    ("The customer must, in addition, give notice.", "The customer must give notice."),
+    ("The customer must give notice as well.", "The customer must give notice."),
+    ("The Department Head must approve, too.", "The Department Head must approve."),
+    # not standalone connectives: unchanged
+    ("The fee is too high to waive.", "The fee is too high to waive."),
+    ("The Branch Manager too must approve.", "The Branch Manager too must approve."),
+    ("In addition to the passport, an Employment Pass is needed.",
+     "In addition to the passport, an Employment Pass is needed."),
+    ("The Branch Manager as well as the Operations Head must approve.",
+     "The Branch Manager as well as the Operations Head must approve."),
+])
+def test_strip_connectives_only_standalone(text, expected):
+    from modules.reverify import strip_connectives
+    assert strip_connectives(text)[0] == expected

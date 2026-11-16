@@ -147,6 +147,32 @@ def check_rules(sentence, rules: dict, question: str = "") -> dict:
     return {"result": "pass", "detail": "Amounts, periods, approvers and requirements match the rules table."}
 
 
+# Connective words make the small NLI model read a sentence as pointing at some OTHER fact
+# the premise doesn't state: "The customer must ALSO give 1 business day of notice" scored
+# 0.04 entailment, the same sentence without "also" 0.99. Only standalone connectives are
+# removed: "in addition to", "as well as" and "too high" keep their meaning and stay.
+_CONNECTIVES = [
+    (r"^\s*(?:also|additionally|in addition(?!\s+to\b))\s*,?\s+", ""),      # sentence-initial
+    (r",?\s+(?:also|additionally)\b(?:\s*,(?=\s))?", ""),                   # "must also give"
+    (r",?\s+in addition\b(?!\s+to\b)(?:\s*,(?=\s))?", ""),                  # "..., in addition, ..."
+    (r",?\s+as well\b(?!\s+as\b)(?:\s*,(?=\s))?", ""),                      # "... notice as well."
+    (r",\s*too(?=\s*[.!?]?\s*$)", ""),                                      # trailing ", too." only
+]
+
+
+def strip_connectives(text: str) -> tuple[str, list[str]]:
+    """Returns (text without standalone connectives, the connectives removed)."""
+    removed, out = [], text
+    for pattern, repl in _CONNECTIVES:
+        for m in re.finditer(pattern, out, flags=re.IGNORECASE):
+            removed.append(re.sub(r"[\s,]+", " ", m.group(0)).strip().lower())
+        out = re.sub(pattern, repl, out, flags=re.IGNORECASE)
+    out = re.sub(r"\s{2,}", " ", out).strip()
+    if removed and out:
+        out = out[0].upper() + out[1:]
+    return out, removed
+
+
 def check_entailment(sentence, chunk, nli) -> dict:
     """Method C. The small NLI model is unreliable with a long premise: it scored a
     sentence copied word for word from a 3-sentence section as only 0.12 entailment, but
@@ -157,10 +183,11 @@ def check_entailment(sentence, chunk, nli) -> dict:
         return {"result": "unavailable", "detail": "Entailment model not configured; method C was skipped."}
     if chunk is None:
         return {"result": "fail", "detail": "No valid section to compare with."}
-    outs = [nli.check(chunk.text, sentence.text)]
+    hypothesis, removed = strip_connectives(sentence.text)
+    outs = [nli.check(chunk.text, hypothesis)]
     quote = (sentence.quote or "").strip()
     if quote and policy_rules.quote_in_passage(quote, chunk.text) and outs[0].get("label") != "unavailable":
-        outs.append(nli.check(quote, sentence.text))
+        outs.append(nli.check(quote, hypothesis))
     labels = [o.get("label") for o in outs]
     if "contradiction" in labels:
         out = outs[labels.index("contradiction")]
@@ -173,8 +200,84 @@ def check_entailment(sentence, chunk, nli) -> dict:
               "neutral": "The policy text does not clearly imply this sentence",
               "contradiction": "The policy text contradicts this sentence"}[label]
     probs = ", ".join(f"{k} {v:.2f}" for k, v in out.items() if k != "label")
+    note = (f" Checked without the connective word(s): {', '.join(dict.fromkeys(removed))}."
+            if removed else "")
     return {"result": {"entailment": "pass", "neutral": "uncertain", "contradiction": "fail"}[label],
-            "detail": f"{detail} ({probs})."}
+            "detail": f"{detail} ({probs}).{note}"}
+
+
+# --- Band rule: a sentence that applies the policy's amount band to the question's amount ---
+# NLI can't compare numbers, so "An $80,000 withdrawal requires ..." vs "Withdrawals above
+# $50,000 require ..." comes back "neutral". Code can: is $80,000 inside "above $50,000"?
+_MONEY = r"\$\s?(\d[\d,]*(?:\.\d+)?)"
+_BAND_LOW = rf"\b(?:above|over|more than|(?<!not )exceeding)\s+{_MONEY}"
+_BAND_HIGH = [rf"\b(?:up to|not exceeding|no more than|at most)\s+{_MONEY}", rf"{_MONEY}\s+or (?:less|below)"]
+# "X cannot waive/approve a $300 fee": the sentence says the amount is OUTSIDE X's band.
+_NEG_APPROVE = (r"\b(?:cannot|can ?not|can't|may not|must not|(?:is|are) not (?:allowed|permitted|authori[sz]ed) to)"
+                r"\s+(?:\w+\s+){0,2}?(?:waive|approv|authori[sz]|process|sign off)")
+_NEG_ANY = r"\b(?:not|no|never|cannot|can't|unable|neither|nor)\b"
+
+
+def _num(s: str) -> float:
+    return float(s.replace(",", ""))
+
+
+def policy_band(text: str) -> tuple[float | None, float | None] | None:
+    """(lower bound, exclusive; upper bound, inclusive) of the money band a section states,
+    or None if it states none or more than one (then the rule doesn't apply)."""
+    lows = {_num(m) for m in re.findall(_BAND_LOW, text, flags=re.IGNORECASE)}
+    highs = {_num(m) for p in _BAND_HIGH for m in re.findall(p, text, flags=re.IGNORECASE)}
+    if len(lows) > 1 or len(highs) > 1 or not (lows or highs):
+        return None
+    return (next(iter(lows), None), next(iter(highs), None))
+
+
+def _band_text(lo, hi) -> str:
+    parts = ([f"above ${lo:,.0f}"] if lo is not None else []) + ([f"up to ${hi:,.0f}"] if hi is not None else [])
+    return " and ".join(parts)
+
+
+def check_band(sentence, chunk, question: str) -> dict | None:
+    """Replaces an UNCERTAIN method C result when the sentence's only non-policy amounts
+    come from the question. Returns None when the rule doesn't apply (C stays uncertain).
+    Both directions:
+      the sentence applies the rule to the amount   -> the amount must be INSIDE the band
+      it says a named approver cannot approve it   -> the amount must be OUTSIDE the band
+    Disagreement fails. Only called after A and B passed, so the approver named is one the
+    cited section names (B's role check), and every other number is the policy's own."""
+    if chunk is None or not question:
+        return None
+    sent_q = policy_rules.extract_quantities(sentence.text)
+    policy_q = policy_rules.extract_quantities(chunk.text)
+    question_q = policy_rules.extract_quantities(question)
+    extra = {(u, v) for u, vs in sent_q.items() for v in vs if v not in policy_q.get(u, set())}
+    if not extra or any(u != "money" or v not in question_q.get("money", set()) for u, v in extra):
+        return None
+    band = policy_band(chunk.text)
+    if band is None:
+        return None
+    lo, hi = band
+    text = sentence.text
+    if re.search(_NEG_APPROVE, text, flags=re.IGNORECASE):
+        if not roles_in(text):
+            return None  # "a $300 fee cannot be waived" - by whom? Not decidable in code.
+        claims_inside = False
+    elif re.search(_NEG_ANY, text, flags=re.IGNORECASE):
+        return None  # some other negation; leave it to a person
+    else:
+        claims_inside = True
+    amounts = sorted(v for _, v in extra)
+    inside = all((lo is None or v > lo) and (hi is None or v <= hi) for v in amounts)
+    shown = ", ".join(f"${v:,.0f}" for v in amounts)
+    where = "inside" if inside else "outside"
+    if inside == claims_inside:
+        return {"result": "pass",
+                "detail": f"Applies the policy band ({_band_text(lo, hi)}) to the {shown} in the question; "
+                          f"band checked in code: {shown} is {where} it, as the sentence says."}
+    return {"result": "fail",
+            "detail": f"The sentence treats the {shown} in the question as "
+                      f"{'inside' if claims_inside else 'outside'} the policy band ({_band_text(lo, hi)}), "
+                      f"but code finds it is {where} it."}
 
 
 def reverify(correction: Correction, chunks_by_id: dict, ctx: PolicyContext, nli=None,
@@ -188,6 +291,14 @@ def reverify(correction: Correction, chunks_by_id: dict, ctx: PolicyContext, nli
         s.checks = {"A_citation": check_citation(s, chunk, ctx, question),
                     "B_rules": check_rules(s, rules, question),
                     "C_entailment": check_entailment(s, chunk, nli)}
+        # Band rule: only for an UNCERTAIN C (never a contradiction or a pass), and only when
+        # A and B both passed, so B's role check has already ruled out the wrong approver.
+        if (s.checks["C_entailment"]["result"] == "uncertain" and s.checks["A_citation"]["result"] == "pass"
+                and s.checks["B_rules"]["result"] == "pass"):
+            band = check_band(s, chunk, question)
+            if band is not None:
+                band["detail"] += f" (Entailment model alone: {s.checks['C_entailment']['detail']})"
+                s.checks["C_entailment"] = band
         results.extend(c["result"] for c in s.checks.values())
     if "fail" in results:
         correction.reverification = "not_confirmed"
