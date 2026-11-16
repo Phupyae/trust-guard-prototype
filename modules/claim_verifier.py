@@ -28,6 +28,7 @@ import config
 from modules import policy_rules
 from modules.evidence_retriever import expand_siblings
 from modules.policy_validation import PolicyContext, fmt, parse_date
+from modules.reverify import section_exemptions
 from modules.schemas import (CONTRADICTED, INSUFFICIENT_EVIDENCE, STATUSES, SUPPORTED, Claim,
                              Evidence, VerificationResult)
 
@@ -180,7 +181,8 @@ def verify_claim(claim: Claim, question: str, evidence: list[Evidence], relevant
     # policy: "$80,000" in "notice for a withdrawal of $80,000" is not a wrong threshold.
     case = policy_rules.case_quantities(question, answer or claim.claim)
     for result, message in (policy_rules.numeric_check(claim.claim, cited.text, ignore=case),
-                            policy_rules.requirement_check(claim.claim, cited.text)):
+                            policy_rules.requirement_check(claim.claim, cited.text,
+                                                           section_exemptions(cited.document_id, cited.section))):
         if result == "n/a":
             continue
         if result == "mismatch" and status == SUPPORTED:

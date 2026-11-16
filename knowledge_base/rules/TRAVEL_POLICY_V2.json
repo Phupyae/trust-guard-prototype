@@ -10,7 +10,7 @@
     "4.3": {"quantities": [{"unit": "money", "value": 250}], "roles": ["Department Head"], "required": ["approval"]},
     "4.4": {"quantities": [{"unit": "hours", "value": 8}], "roles": ["Department Head"], "required": ["approval"]},
     "5.1": {"quantities": [{"unit": "days", "value": 30}], "roles": ["Department Head"], "required": []},
-    "5.2": {"quantities": [{"unit": "money", "value": 25}], "roles": [], "required": ["receipts"]},
+    "5.2": {"quantities": [{"unit": "money", "value": 25}], "roles": [], "required": ["receipts"], "exemptions": ["daily allowance"]},
     "6": {"quantities": [{"unit": "days", "value": 5}], "roles": [], "required": []},
     "7.1": {"quantities": [{"unit": "money", "value": 2000}], "roles": ["direct manager", "Department Head"], "required": ["approval"]},
     "7.2": {"quantities": [], "roles": [], "required": ["approval"]}

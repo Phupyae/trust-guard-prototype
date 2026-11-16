@@ -63,6 +63,11 @@ def load_rules() -> dict:
     return rules
 
 
+def section_exemptions(document_id: str, section: str) -> list[str]:
+    """The rules table's `exemptions` for one section ([] if none or no entry)."""
+    return (load_rules().get(document_id, {}).get(section) or {}).get("exemptions", [])
+
+
 def _says_not_required(sentence: str, topic: str) -> bool:
     s = sentence.lower()
     hit = any(re.search(p, s) for p in policy_rules._NO_REQUIREMENT.get(topic, []))
@@ -136,8 +141,12 @@ def check_rules(sentence, rules: dict, question: str = "") -> dict:
         missing = section_roles - named
         if missing:
             problems.append("leaves out required approver(s): " + ", ".join(sorted(missing)))
+    # Exemptions: items the section itself says are NOT subject to its requirements
+    # ("The daily allowance does not require receipts."). A sentence about an exempt item
+    # may say the step isn't needed - unless it generalises ("any/all/every expense").
+    exempt = policy_rules.names_exempt_item(sentence.text, entry.get("exemptions"))
     for topic in entry.get("required", []):
-        if topic in policy_rules._NO_REQUIREMENT and _says_not_required(sentence.text, topic):
+        if topic in policy_rules._NO_REQUIREMENT and _says_not_required(sentence.text, topic) and not exempt:
             problems.append(f"says {topic} {_be(topic)} not needed; the rules table says {_it(topic)} required")
     for topic in entry.get("not_required", []):
         if _says_required(sentence.text, topic):

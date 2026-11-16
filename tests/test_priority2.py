@@ -651,3 +651,71 @@ def test_connective_also_is_stripped_before_nli(chunks, ctx):
 def test_strip_connectives_only_standalone(text, expected):
     from modules.reverify import strip_connectives
     assert strip_connectives(text)[0] == expected
+
+
+# ---------- regressions from 20261116_204014_controlled: exemptions in a section ----------
+S52 = ("Original or digital receipts must be attached for every individual expense above $25. "
+       "The daily allowance does not require receipts.")
+DAILY = "The daily allowance does not require receipts."
+
+
+def test_rules_exemption_passes_daily_allowance_sentence(chunks, ctx):
+    """D_partial: method B failed the correct sentence 'The daily allowance does not require receipts.'
+    because §5.2 lists receipts as required."""
+    s = _sentence(DAILY, "TRAVEL_POLICY_V2", "5.2", DAILY)
+    assert check_rules(s, load_rules())["result"] == "pass"
+    by_id = {c.chunk_id: c for c in chunks}
+    out = reverify(Correction("suggested", sentences=[s]), by_id, ctx, FakeNLI("entailment"),
+                   question="When do I need to submit my travel claim and do I need receipts?")
+    assert out.reverification == "confirmed", out.sentences[0].checks
+
+
+@pytest.mark.parametrize("text", [
+    "No receipts are needed for hotel expenses.",
+    "Receipts are not required for any expense, including the daily allowance.",
+])
+def test_rules_exemption_does_not_cover_other_items(text):
+    r = check_rules(_sentence(text, "TRAVEL_POLICY_V2", "5.2", DAILY), load_rules())
+    assert r["result"] == "fail" and "receipts are not needed" in r["detail"], r
+
+
+def test_requirement_check_uses_rules_table_exemptions():
+    """The claim-level backstop stands down ONLY when the claim names an exempt item of the
+    cited section. The exemption sentence in §5.2 must not switch it off for other claims."""
+    from modules.reverify import section_exemptions
+    ex = section_exemptions("TRAVEL_POLICY_V2", "5.2")
+    assert ex == ["daily allowance"]
+    assert policy_rules.requirement_check(DAILY, S52, ex)[0] == "n/a"
+    assert policy_rules.requirement_check("No receipts are needed for hotel expenses.", S52, ex)[0] == "mismatch"
+    assert policy_rules.requirement_check("Receipts are not required for any expense.", S52, ex)[0] == "mismatch"
+    assert policy_rules.requirement_check(
+        "Receipts are not required for any expense, including the daily allowance.", S52, ex)[0] == "mismatch"
+    # No exemptions passed (or none in the table): checked as before.
+    assert policy_rules.requirement_check(DAILY, S52)[0] == "mismatch"
+    assert section_exemptions("SOP_OPS_021_V3_0", "3.3") == []
+    assert policy_rules.requirement_check("Approval is not required.", Q33_FULL)[0] == "mismatch"
+
+
+def test_claim_backstop_on_section_5_2(chunks, ctx):
+    """End to end through verify_claim: if the LLM wrongly says SUPPORTED for 'No receipts are
+    needed for hotel expenses' citing §5.2, the requirement check still downgrades it; the
+    exempt 'daily allowance' claim is left as the LLM judged it."""
+    from modules.claim_verifier import verify_claim
+    from modules.schemas import Evidence, INSUFFICIENT_EVIDENCE
+    c52 = next(c for c in chunks if c.document_id == "TRAVEL_POLICY_V2" and c.section == "5.2")
+    ev = [Evidence(chunk=c52, score=0.9)]
+    q = "Do I need receipts for my overseas trip?"
+    for text, expected, flagged in [("No receipts are needed for hotel expenses.", INSUFFICIENT_EVIDENCE, True),
+                                    (DAILY, SUPPORTED, False)]:
+        llm = ScriptedLLM(record_verdict={"applicability": "", "evidence_passage": 1, "policy_requirement": "",
+                                          "evidence_quote": DAILY, "status": SUPPORTED, "explanation": "ok"})
+        r = verify_claim(Claim(1, text), q, ev, ev, llm, ctx, answer=text)
+        assert r.status == expected, (text, r.rule_checks)
+        assert any("Requirement check" in m for m in r.rule_checks) == flagged, r.rule_checks
+
+
+def test_requirement_check_double_negative_in_evidence_is_not_an_exemption():
+    """'No travel expense claim is approved automatically' (§7.2) matches a not-required pattern
+    but means approval IS required, so it must not switch the check off."""
+    s72 = "No travel expense claim is approved automatically. Every claim is reviewed by an approver."
+    assert policy_rules.requirement_check("All claims are automatically approved.", s72)[0] == "mismatch"

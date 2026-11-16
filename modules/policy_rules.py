@@ -169,10 +169,25 @@ _REQUIRES = {
 _DOUBLE_NEGATIVE = r"\b(?:no|not|never)\b[^.]{0,40}\bautomatic"
 
 
-def requirement_check(claim: str, evidence: str) -> tuple[str, str]:
+def names_exempt_item(text: str, exemptions: list[str] | None) -> bool:
+    """Does the text name an item the section exempts from its requirements (rules-table
+    `exemptions`, e.g. "daily allowance" for TRAVEL_POLICY_V2 §5.2)? A sentence that
+    generalises ("any/all/every expense, including the daily allowance") does not count:
+    it is about every item, not the exempt one."""
+    t = text.lower()
+    return (any(re.search(rf"\b{re.escape(x.lower())}\b", t) for x in exemptions or [])
+            and not re.search(r"\b(?:any|all|every)\b", t))
+
+
+def requirement_check(claim: str, evidence: str, exemptions: list[str] | None = None) -> tuple[str, str]:
     """Flags the classic dangerous error: the answer says something is NOT required
-    (approval, receipts) when the policy says it IS."""
+    (approval, receipts) when the policy says it IS.
+    `exemptions`: the cited section's rules-table exemptions. Only when the CLAIM names one
+    ("The daily allowance does not require receipts.") does the check stand down, because
+    the section itself says that item is exempt. Any other claim is still checked."""
     c, e = claim.lower(), evidence.lower()
+    if names_exempt_item(claim, exemptions):
+        return "n/a", ""
     for topic, patterns in _NO_REQUIREMENT.items():
         says_not_required = any(re.search(p, c) for p in patterns)
         if topic == "approval" and re.search(_DOUBLE_NEGATIVE, c):
