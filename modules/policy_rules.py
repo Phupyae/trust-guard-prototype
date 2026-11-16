@@ -55,14 +55,26 @@ def extract_quantities(text: str) -> dict[str, set[float]]:
     return found
 
 
-def numeric_check(claim: str, evidence: str) -> tuple[str, str]:
-    """Returns (result, message) where result is 'match', 'mismatch' or 'n/a'."""
+def case_quantities(question: str, answer: str) -> dict[str, set[float]]:
+    """Quantities that describe the employee's CASE ("withdraw $80,000"): in the question
+    but not stated by the answer. The claim extractor may copy them into a claim for
+    context ("...for a withdrawal of $80,000"); they are not a policy value, so they must
+    not be compared with the policy's thresholds. A number the answer itself states is
+    still checked, even if the question also mentions it."""
+    q, a = extract_quantities(question), extract_quantities(answer)
+    return {u: vs - a.get(u, set()) for u, vs in q.items() if vs - a.get(u, set())}
+
+
+def numeric_check(claim: str, evidence: str, ignore: dict[str, set[float]] | None = None) -> tuple[str, str]:
+    """Returns (result, message) where result is 'match', 'mismatch' or 'n/a'.
+    `ignore`: quantities to skip, e.g. case_quantities() from the question."""
     claim_q, ev_q = extract_quantities(claim), extract_quantities(evidence)
+    ignore = ignore or {}
     mismatches, matches = [], []
     for unit, values in claim_q.items():
         if unit not in ev_q:
             continue  # evidence says nothing about this kind of quantity
-        for v in values:
+        for v in values - ignore.get(unit, set()):
             (matches if v in ev_q[unit] else mismatches).append((unit, v))
     fmt = lambda u, v: f"${v:,.0f}" if u == "money" else f"{v:g} {u}"
     if mismatches:
@@ -106,10 +118,12 @@ def _fmt(n: float) -> str:
     return f"{n:,.0f}" if n == int(n) else f"{n:g}"
 
 
-def extraction_check(claim: str, answer: str) -> list[str]:
+def extraction_check(claim: str, answer: str, question: str = "") -> list[str]:
     """Numbers in the claim that are NOT in the original answer = the extractor
-    changed or invented a fact. The verdict would then be about the wrong claim."""
-    invented = sorted(numbers_in(claim) - numbers_in(answer))
+    changed or invented a fact. The verdict would then be about the wrong claim.
+    Numbers from the question are allowed: the extractor is told to use the question
+    to make claims self-contained, so "$80,000" from the question is context, not invention."""
+    invented = sorted(numbers_in(claim) - numbers_in(answer) - numbers_in(question))
     if not invented:
         return []
     return [f"Extraction check: the number(s) {', '.join(_fmt(n) for n in invented)} in this claim "

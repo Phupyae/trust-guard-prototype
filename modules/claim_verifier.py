@@ -176,7 +176,10 @@ def verify_claim(claim: Claim, question: str, evidence: list[Evidence], relevant
 
     # Rules 3 and 4: exact facts. Compared against the whole cited section, not just
     # the quote, so a short quote can't hide a conflicting number.
-    for result, message in (policy_rules.numeric_check(claim.claim, cited.text),
+    # Amounts from the question that the answer doesn't state describe the case, not the
+    # policy: "$80,000" in "notice for a withdrawal of $80,000" is not a wrong threshold.
+    case = policy_rules.case_quantities(question, answer or claim.claim)
+    for result, message in (policy_rules.numeric_check(claim.claim, cited.text, ignore=case),
                             policy_rules.requirement_check(claim.claim, cited.text)):
         if result == "n/a":
             continue

@@ -148,12 +148,24 @@ def check_rules(sentence, rules: dict, question: str = "") -> dict:
 
 
 def check_entailment(sentence, chunk, nli) -> dict:
-    """Method C."""
+    """Method C. The small NLI model is unreliable with a long premise: it scored a
+    sentence copied word for word from a 3-sentence section as only 0.12 entailment, but
+    0.99 against the sentence itself. So the sentence is checked against the whole section
+    AND against its quote (which method A proves is in the section word for word).
+    Any contradiction fails; otherwise entailment by either premise passes."""
     if nli is None:
         return {"result": "unavailable", "detail": "Entailment model not configured; method C was skipped."}
     if chunk is None:
         return {"result": "fail", "detail": "No valid section to compare with."}
-    out = nli.check(chunk.text, sentence.text)
+    outs = [nli.check(chunk.text, sentence.text)]
+    quote = (sentence.quote or "").strip()
+    if quote and policy_rules.quote_in_passage(quote, chunk.text) and outs[0].get("label") != "unavailable":
+        outs.append(nli.check(quote, sentence.text))
+    labels = [o.get("label") for o in outs]
+    if "contradiction" in labels:
+        out = outs[labels.index("contradiction")]
+    else:
+        out = max(outs, key=lambda o: o.get("entailment", 0.0))
     label = out.get("label")
     if label == "unavailable":
         return {"result": "unavailable", "detail": out.get("note", "Method C was skipped.")}

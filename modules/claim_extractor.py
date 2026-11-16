@@ -49,5 +49,5 @@ def extract_claims(question: str, answer: str, llm) -> list[Claim]:
                             context={"question": question, "answer": answer})
     texts = [c["claim"].strip() for c in result.get("claims", []) if c.get("claim", "").strip()]
     # Guard the extractor: every claim is checked against the original answer.
-    return [Claim(claim_id=i + 1, claim=t, extraction_warnings=policy_rules.extraction_check(t, answer))
+    return [Claim(claim_id=i + 1, claim=t, extraction_warnings=policy_rules.extraction_check(t, answer, question))
             for i, t in enumerate(texts[: config.MAX_CLAIMS])]

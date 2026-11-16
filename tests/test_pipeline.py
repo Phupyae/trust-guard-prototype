@@ -159,6 +159,22 @@ def test_extraction_check_numbers():
     assert policy_rules.coverage_check(["up to $1,500 per trip", "due within 30 days"], answer) == []
 
 
+def test_question_amount_is_case_not_policy():
+    # H_cash_correct: the extractor copied "$80,000" from the question into a claim.
+    q = "A customer wants to withdraw $80,000 in cash at the branch today. Who needs to approve it?"
+    a = "Withdrawals above $50,000 need both approvers. The customer must give 1 business day of advance notice."
+    claim = "The customer must give 1 business day of advance notice for a withdrawal of $80,000."
+    section = ("Withdrawals above $50,000 require approval from both the Branch Manager and the Branch "
+               "Operations Head. The customer must give 1 business day of advance notice.")
+    assert policy_rules.extraction_check(claim, a, q) == []
+    case = policy_rules.case_quantities(q, a)
+    assert policy_rules.numeric_check(claim, section, ignore=case)[0] == "match"
+    # A number the ANSWER states is still checked, even if the question mentions it too.
+    q2, a2 = "Can I waive a $300 fee?", "Yes, up to $300 can be waived."
+    assert policy_rules.numeric_check("Up to $300 can be waived.", "Fees up to $50 may be waived.",
+                                      ignore=policy_rules.case_quantities(q2, a2))[0] == "mismatch"
+
+
 class AlteringExtractor:
     """Simulates an extractor that 'corrects' $200 to $150 and drops the deadline,
     while the judge happily agrees with the altered claim."""
