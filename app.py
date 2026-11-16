@@ -412,7 +412,8 @@ def render_completeness(report: Report, show_all: bool) -> None:
         return
     rows = ""
     for e in shown:
-        mark = (chip(SUPPORTED, "Included") if e.covered else chip(CONTRADICTED, "Missing") if e.essential
+        mark = (chip(SUPPORTED, "Included") if e.covered else chip(CONTRADICTED, "Wrong value") if e.wrong_value
+                else chip(CONTRADICTED, "Missing") if e.essential
                 else raw_chip("neutral", "+", "Extra detail"))
         rows += (f'<li>{mark}<div><b>{esc(e.element)}</b><span>{esc(e.source_title)} v{esc(e.version)}, '
                  f'§{esc(e.section)}: “{esc(e.quote)}”</span>'

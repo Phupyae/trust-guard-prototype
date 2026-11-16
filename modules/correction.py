@@ -75,6 +75,8 @@ def _findings(results, completeness) -> str:
             lines.append(f'- Wrong: "{r.claim}" ({r.explanation})')
         elif r.status == INSUFFICIENT_EVIDENCE:
             lines.append(f'- Not supported by policy: "{r.claim}"')
+    for e in (completeness.wrong_values if completeness else []):
+        lines.append(f"- Wrong value: {e.element}")
     for e in (completeness.missing if completeness else []):
         lines.append(f"- Missing: {e.element}")
     return "\n".join(lines) or "- (none)"

@@ -144,7 +144,7 @@ def run_pipeline(question: str, answer: str, retriever, llm, ctx: PolicyContext 
     t["extracted"] = time.perf_counter()
     on_stage("claims", claims)
 
-    report.results = verify_claims(claims, question, retriever, llm, ctx) if claims else []
+    report.results = verify_claims(claims, question, retriever, llm, ctx, answer=answer) if claims else []
     t["verified"] = time.perf_counter()
     on_stage("verified", report.results)
 

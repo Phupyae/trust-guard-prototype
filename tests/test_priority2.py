@@ -185,6 +185,7 @@ def _sentence(text, doc, sec, quote):
 
 
 Q33 = "Withdrawals above $50,000 require approval from both the Branch Manager and the Branch Operations Head."
+Q33_FULL = Q33 + " The customer must give 1 business day of advance notice so that the branch can arrange the cash."
 
 
 class FakeNLI:
@@ -423,3 +424,77 @@ def test_verifier_prompt_scopes_missing_approver_rule():
     from modules.claim_verifier import SYSTEM
     assert "ONLY when the employee's question describes a specific case" in SYSTEM
     assert "do not apply this exception" in SYSTEM
+
+
+# ---------- regressions from the 16 Nov 2026 controlled run ----------
+def test_positive_requirement_is_not_read_as_not_required(chunks, ctx):
+    """Run 20261116 case H: 'approval is required from both...' failed method B with
+    'says approval is not needed', because the regex made 'not' optional."""
+    assert policy_rules.requirement_check("For withdrawals above $50,000, approval is required from both the "
+                                          "Branch Manager and the Branch Operations Head.", Q33_FULL)[0] == "n/a"
+    assert policy_rules.requirement_check("Approval is not required.", Q33_FULL)[0] == "mismatch"
+    assert policy_rules.requirement_check("Receipts are needed for every expense.",
+                                          "Original or digital receipts must be attached.")[0] == "n/a"
+    s = _sentence("For withdrawals above $50,000, approval is required from both the Branch Manager and the "
+                  "Branch Operations Head.", "SOP_OPS_021_V3_0", "3.3", Q33)
+    assert check_rules(s, load_rules(), "A customer wants to withdraw $80,000 in cash at the branch today.")[
+        "result"] == "pass"
+
+
+def test_root_cause_only_blames_older_version_of_same_policy(retriever, ctx):
+    """Run 20261116 cases B and I: '$200 per day' was blamed on the old HOTEL limit ($200 per
+    night), and a fee-waiver '$500' was blamed on the old TRAVEL policy."""
+    from modules.claim_verifier import find_root_cause
+    from modules.schemas import VerificationResult
+    cases = [  # (claim, cited current source, expected root cause fragment or "")
+        ("Employees can claim up to $200 per day for overseas business travel.", "TRAVEL_POLICY_V2", ""),
+        ("A Customer Service Officer can waive fees of up to $500 per customer in a 12-month period.",
+         "SOP_OPS_047", ""),
+        ("Hotels are reimbursed up to $200 per night for overseas trips.", "TRAVEL_POLICY_V2", "version 1.0"),
+        ("Withdrawals above $30,000 require Branch Manager approval.", "SOP_OPS_021_V3_0", "version 2.1"),
+    ]
+    for text, src, expected in cases:
+        r = VerificationResult(claim_id=1, claim=text, status=CONTRADICTED, explanation="", source_id=src)
+        cause = find_root_cause(r, Claim(1, text), retriever, ctx)
+        assert (expected in cause) if expected else cause == "", (text, cause)
+
+
+def test_wrong_value_is_not_also_a_missing_step(retriever, ctx):
+    """Run 20261116 case E: '$200/night, 60 days' was counted as 2 contradictions AND 2
+    missing steps. A wrong value is a contradiction only; a never-mentioned approver is missing."""
+    q = "A customer wants to withdraw $80,000 in cash at the branch today. Who needs to approve it?"
+    ev = question_evidence(q, retriever, ctx)
+    n = next(i for i, e in enumerate(ev, 1) if Q33 in e.chunk.text)
+    notice = "The customer must give 1 business day of advance notice so that the branch can arrange the cash."
+    llm = ScriptedLLM(record_completeness={"required_elements": [
+        {"element": "Branch Operations Head must also approve", "passage": n, "quote": Q33,
+         "coverage": "absent", "essential": True, "note": ""},
+        {"element": "1 business day notice", "passage": n, "quote": notice,
+         "coverage": "different", "essential": True, "note": "says same day"}]})
+    res = check_completeness(q, "Withdrawals above $30,000 require Branch Manager approval. "
+                                "The customer can collect the cash on the same day.", ev, llm)
+    assert [e.element for e in res.missing] == ["Branch Operations Head must also approve"]
+    assert [e.element for e in res.wrong_values] == ["1 business day notice"]
+
+
+def test_prompts_keep_joint_requirements_together():
+    """Run 20261116 case H: 'both the Branch Manager and the Branch Operations Head' was split
+    into two claims, and each half was marked CONTRADICTED for leaving out the other."""
+    from modules.claim_extractor import SYSTEM as EXTRACT
+    from modules.claim_verifier import SYSTEM as VERIFY
+    assert "Do NOT split a joint requirement" in EXTRACT
+    assert "<full_answer>" in VERIFY and "Judge omissions against the whole answer" in VERIFY
+
+
+def test_verifier_receives_full_answer(retriever, ctx):
+    seen = {}
+
+    def verdict(user, c):
+        seen["user"] = user
+        return {"applicability": "", "evidence_passage": 0, "policy_requirement": "", "evidence_quote": "",
+                "status": "INSUFFICIENT_EVIDENCE", "explanation": ""}
+    answer = "Withdrawals above $50,000 need approval from both the Branch Manager and the Branch Operations Head."
+    verify_claims([Claim(1, "Withdrawals above $50,000 need approval from the Branch Manager.")],
+                  "Who approves an $80,000 withdrawal?", retriever, ScriptedLLM(record_verdict=verdict), ctx,
+                  answer=answer)
+    assert f"<full_answer>{answer}</full_answer>" in seen["user"]

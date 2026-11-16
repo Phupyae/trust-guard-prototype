@@ -74,6 +74,24 @@ def numeric_check(claim: str, evidence: str) -> tuple[str, str]:
     return "n/a", ""
 
 
+_RATE_BASIS = r"\bper (day|night|trip|customer|month|year|week|claim|transaction)s?\b"
+
+
+def rate_bases(text: str) -> set[str]:
+    """What an amount is counted per: '$200 per day' and '$200 per night' are different
+    rules even though the number is the same."""
+    return set(re.findall(_RATE_BASIS, text.lower()))
+
+
+def same_rule_numbers(claim: str, passage: str) -> bool:
+    """Stricter than numeric_check()=='match': the numbers match AND, if the claim says
+    what the amount is per, the passage says the same. Used to blame an old policy
+    version, where a coincidental '$200' must not count."""
+    if numeric_check(claim, passage)[0] != "match":
+        return False
+    return rate_bases(claim) <= rate_bases(passage)
+
+
 # --- Extraction checks (guarding the claim-extraction AI) --------------------
 # Claim extraction is also an AI writing text, so it can change, add or drop facts.
 # We can't check meaning cheaply, but we CAN check numbers exactly: extraction
@@ -117,13 +135,16 @@ _NO_REQUIREMENT = {
         r"\bapproved automatically",
         r"\bno (?:manager |prior |further )?approval",
         r"\bwithout (?:any )?(?:manager |prior )?approval",
-        r"approval (?:is|isn't|is not) (?:not )?(?:needed|required|necessary)",
+        # The negation must be present: "approval is required" is the OPPOSITE of this.
+        # (An earlier version made "not" optional, so "approval is required from both..."
+        # was read as "approval is not required".)
+        r"approval (?:is not|isn't|are not|aren't) (?:needed|required|necessary)",
         r"\b(?:do|does|don't|doesn't)(?: not)? (?:need|require) (?:any )?(?:manager )?approval",
     ],
     "receipts": [
         r"\bno receipts?\b",
         r"\bwithout (?:any )?receipts?",
-        r"receipts? (?:are|is|aren't|isn't) (?:not )?(?:needed|required|necessary)",
+        r"receipts? (?:are not|is not|aren't|isn't) (?:needed|required|necessary)",
         r"\b(?:do|does|don't|doesn't)(?: not)? (?:need|require) (?:any )?receipts?",
     ],
 }

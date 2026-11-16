@@ -32,7 +32,10 @@ You receive an employee's question, the AI assistant's answer, and numbered poli
 Task:
 1. Using ONLY the passages, list the facts or steps that a correct and complete answer to THIS question must contain, so that an employee who follows the answer acts correctly. At most 4. Include only what the question actually asks about (e.g. for "who approves a $80,000 withdrawal?" the approvers and any condition attached to that same case, such as required notice). Do not list background, definitions, or rules for other cases.
 2. For each element, give the passage number and copy the supporting sentence word for word.
-3. Set covered to true if the answer states this fact (paraphrase is fine, but values such as amounts, approvers and deadlines must be the same). Set covered to false if the answer leaves it out or states something different.
+3. Set coverage to exactly one of:
+   - "covered": the answer states this fact (paraphrase is fine, but values such as amounts, approvers and deadlines must be the same).
+   - "different": the answer addresses this same point but with a different value (e.g. a different amount, deadline, or "same day" instead of required notice). This is a wrong value, NOT an omission.
+   - "absent": the answer does not mention this point at all. For approvers: if the answer names some required approvers but not others, the unnamed approver is "absent".
 4. Set essential to true ONLY if an employee who follows the answer without this fact would act wrongly or be stopped: a required approver, a required document or step, a deadline, a limit, or a condition that changes whether something is allowed. Set essential to false for helpful extra detail that doesn't change what the employee does for the question asked (e.g. a rate for partial days when the question is about the general rules, or background definitions). For broad questions ("what are the rules for X?"), the core rules are essential and secondary details are not.
 If no passage answers the question, return an empty list.
 
@@ -50,11 +53,11 @@ SCHEMA = {
                     "element": {"type": "string", "description": "The required fact or step, in plain English."},
                     "passage": {"type": "integer", "minimum": 1, "maximum": 6},
                     "quote": {"type": "string"},
-                    "covered": {"type": "boolean"},
+                    "coverage": {"type": "string", "enum": ["covered", "different", "absent"]},
                     "essential": {"type": "boolean"},
                     "note": {"type": "string", "description": "How the answer covers it, or what it says instead."},
                 },
-                "required": ["element", "passage", "quote", "covered", "essential", "note"],
+                "required": ["element", "passage", "quote", "coverage", "essential", "note"],
             },
         }
     },
@@ -91,8 +94,11 @@ def check_completeness(question: str, answer: str, evidence, llm) -> Completenes
             result.dropped.append(text)  # can't show where the policy says it -> don't claim it's required
             continue
         c = evidence[idx - 1].chunk
+        coverage = item.get("coverage")
+        if coverage not in ("covered", "different", "absent"):  # older/mock output: boolean only
+            coverage = "covered" if item.get("covered") else "absent"
         result.elements.append(RequiredElement(
-            element=text, covered=bool(item.get("covered")), source_id=c.document_id,
+            element=text, covered=coverage == "covered", coverage=coverage, source_id=c.document_id,
             source_title=c.document_title, section=c.section, section_title=c.section_title,
             version=c.version, quote=quote, note=(item.get("note") or "").strip(),
             essential=item.get("essential", True) is not False))

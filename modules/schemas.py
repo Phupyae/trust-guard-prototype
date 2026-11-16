@@ -83,6 +83,13 @@ class RequiredElement:
     quote: str = ""
     note: str = ""
     essential: bool = True             # False = useful extra detail, not needed to act correctly
+    # "covered" | "different" (answer states it with a wrong value) | "absent" (answer never
+    # mentions it). Only "absent" is an omission; "different" is already a contradiction.
+    coverage: str = ""
+
+    @property
+    def wrong_value(self) -> bool:
+        return not self.covered and self.coverage == "different"
 
 
 @dataclass
@@ -93,8 +100,14 @@ class CompletenessResult:
 
     @property
     def missing(self) -> list[RequiredElement]:
-        """Only ESSENTIAL gaps make an answer incomplete."""
-        return [e for e in self.elements if not e.covered and e.essential]
+        """Only ESSENTIAL facts the answer never mentions make it incomplete. A fact the
+        answer states with the wrong value is a contradiction, not a missing step, so it
+        is not counted twice."""
+        return [e for e in self.elements if not e.covered and e.essential and not e.wrong_value]
+
+    @property
+    def wrong_values(self) -> list[RequiredElement]:
+        return [e for e in self.elements if e.wrong_value and e.essential]
 
     @property
     def extra_details(self) -> list[RequiredElement]:
@@ -103,6 +116,7 @@ class CompletenessResult:
     def to_dict(self) -> dict:
         return {"checked": self.checked, "elements": [asdict(e) for e in self.elements],
                 "missing": [e.element for e in self.missing],
+                "wrong_values": [e.element for e in self.wrong_values],
                 "extra_details": [e.element for e in self.extra_details], "dropped": self.dropped}
 
 
