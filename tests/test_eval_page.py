@@ -41,6 +41,6 @@ def test_repository_results_load():
 
 def test_evaluation_page_renders_without_errors():
     from streamlit.testing.v1 import AppTest
-    at = AppTest.from_file(str(ROOT / "pages" / "evaluation.py"), default_timeout=60).run()
+    at = AppTest.from_file(str(ROOT / "pages" / "reliability.py"), default_timeout=60).run()
     assert not at.exception
     assert at.selectbox, "the run selector should be shown when results exist"

@@ -36,7 +36,7 @@ from modules.nli import NLIChecker
 from modules.pipeline import InputError, Report, default_registry, run_pipeline
 from modules.policy_validation import PolicyContext, fmt
 from modules.schemas import CONTRADICTED, INSUFFICIENT_EVIDENCE, SUPPORTED
-from ui_theme import apply_base_theme, page_nav
+from ui_theme import apply_base_theme, page_nav, reliability_link
 
 st.set_page_config(page_title="TrustGuard AI", page_icon="🛡️", layout="wide")
 
@@ -70,11 +70,11 @@ apply_base_theme()
 st.markdown("""
 <style>
 /* Priority 2 additions: derivation steps, required elements, suggested answer */
-.tg-col-label.how {color:var(--wis-ink); margin-top:0.9rem;}
+.tg-col-label.how {color:var(--navy); margin-top:0.9rem;}
 .tg-steps {list-style:none; padding:0; margin:0.3rem 0 0.4rem 0; counter-reset:none;}
 .tg-steps li {display:flex; gap:0.6rem; align-items:flex-start; padding:0.35rem 0; border-bottom:1px dashed var(--rule);}
 .tg-steps li:last-child {border-bottom:none;}
-.tg-steps .n {color:var(--cobalt); font-size:1.15rem; line-height:1.2; min-width:1.3rem;}
+.tg-steps .n {color:var(--accent); font-size:1.15rem; line-height:1.2; min-width:1.3rem;}
 .tg-steps b {display:block; color:var(--ink); font-size:0.9rem;}
 .tg-steps span {color:var(--ink-2); font-size:0.92rem;}
 .tg-root {background:var(--unk-bg); color:var(--unk); border-radius:6px; padding:0.5rem 0.75rem; margin-top:0.5rem;
@@ -85,11 +85,11 @@ st.markdown("""
 .tg-req b {display:block; color:var(--ink);}
 .tg-req span {display:block; color:var(--ink-2); font-size:0.86rem;}
 .tg-req span.note {color:var(--ink-3); font-style:italic;}
-.tg-fix {background:#fff; border:1px solid var(--wis-line); border-left:6px solid var(--cobalt); border-radius:8px;
+.tg-fix {background:#fff; border:1px solid var(--line); border-left:6px solid var(--accent); border-radius:8px;
   padding:0.4rem 1.1rem 0.8rem; margin:0.8rem 0 0.5rem 0;}
 .tg-fix p {font-family:'Source Serif 4', Georgia, serif; font-size:1.05rem; line-height:1.55; color:var(--ink);
   margin:0.35rem 0;}
-.tg-fix .cite {font-family:'Public Sans', system-ui, sans-serif; font-size:0.78rem; color:var(--cobalt); white-space:nowrap;}
+.tg-fix .cite {font-family:'Public Sans', system-ui, sans-serif; font-size:0.78rem; color:var(--accent); white-space:nowrap;}
 </style>
 """, unsafe_allow_html=True)
 
@@ -108,7 +108,7 @@ def raw_chip(key: str, icon: str, text: str) -> str:
 
 
 # ---------- header first, so the page is never blank while loading (Feedback) ----------
-st.markdown('<div class="tg-hero"><h1><span aria-hidden="true">🏦</span>Northbridge Bank AI Assistant</h1>'
+st.markdown('<div class="tg-hero"><h1><span class="tg-logo" aria-hidden="true">🏦</span>Northbridge Bank AI Assistant</h1>'
             '<p>Ask about staff policies and branch procedures. Every answer is intercepted by '
             '<b>TrustGuard</b>, an independent verification layer, which shows how the right answer is reached '
             'from the policy in effect before you rely on it.</p>'
@@ -117,12 +117,12 @@ st.markdown('<div class="tg-hero"><h1><span aria-hidden="true">🏦</span>Northb
             unsafe_allow_html=True)
 st.markdown(
     '<div class="tg-flow" aria-label="How the two agents work together">'
-    '<div><b>You</b><span>type a question</span></div><i aria-hidden="true">→</i>'
-    '<div class="a1"><b>Agent 1 · Banking AI Assistant</b><span>answers fast (cheaper model)</span></div>'
-    '<i aria-hidden="true">→</i>'
-    '<div class="a2"><b>🛡️ TrustGuard</b><span>derives the answer from the policy in effect, compares, '
-    'corrects and re-checks (stronger model)</span></div><i aria-hidden="true">→</i>'
-    '<div><b>You</b><span>know what to trust, and why</span></div></div>', unsafe_allow_html=True)
+    '<div><em aria-hidden="true">💬</em><b>You</b><span>type a question</span></div><i aria-hidden="true">→</i>'
+    '<div class="a1"><em aria-hidden="true">🏦</em><b>Agent 1 · Banking AI Assistant</b>'
+    '<span>answers fast (cheaper model)</span></div><i aria-hidden="true">→</i>'
+    '<div class="a2"><em aria-hidden="true">🛡️</em><b>TrustGuard</b><span>derives the answer from the policy in '
+    'effect, compares, corrects and re-checks (stronger model)</span></div><i aria-hidden="true">→</i>'
+    '<div><em aria-hidden="true">✓</em><b>You</b><span>know what to trust, and why</span></div></div>', unsafe_allow_html=True)
 
 
 # ---------- cached resources (loaded once per server, not per click) ----------
@@ -241,7 +241,8 @@ with st.sidebar:
 
 
 # ---------- rendering helpers ----------
-A1_AVATAR, TG_AVATAR, USER_AVATAR = "🏦", "🛡️", "🧑‍💼"
+A1_AVATAR, TG_AVATAR, USER_AVATAR = ":material/account_balance:", ":material/shield:", ":material/person:"
+USER_MARK = '<span class="tg-you" hidden></span>'  # lets the theme style the employee's own messages
 
 
 def held_chip() -> str:
@@ -383,6 +384,7 @@ def render_findings(report: Report, key: str) -> None:
                 f'<div class="big" aria-hidden="true">{VERDICT_ICON[level]}</div>'
                 f'<div><div class="msg">{esc(message)}</div><div class="counts">{count_chips}</div></div></div>',
                 unsafe_allow_html=True)
+    reliability_link()
     notes = list(report.input_notes) + ([report.as_of_note] if report.as_of_note else [])
     for n in notes:
         st.caption(f"ℹ️ {n}")
@@ -452,6 +454,7 @@ with st.chat_message("assistant", avatar=A1_AVATAR):
 
 for i, turn in enumerate(st.session_state.turns):
     with st.chat_message("user", avatar=USER_AVATAR):
+        st.markdown(USER_MARK, unsafe_allow_html=True)
         st.markdown(turn["question"])
     if turn["kind"] == "reply":  # input checks or a non-policy message: nothing to verify
         with st.chat_message("assistant", avatar=TG_AVATAR if turn.get("guard") else A1_AVATAR):
@@ -496,6 +499,7 @@ if question:
         add_reply(shown_question, limited.message, guard=True)
 
     with st.chat_message("user", avatar=USER_AVATAR):
+        st.markdown(USER_MARK, unsafe_allow_html=True)
         st.markdown(checked.text)
     try:
         # ---- Layer 2: what kind of message is this? (Agent 1's cheap model) ----
