@@ -2,8 +2,8 @@
 
 Two readers, layered (top to bottom):
   1. Anyone, including employees: one headline number and four plain-language tiles.
-  2. Judges and reviewers: results by type of mistake, claim checking, corrections, failures.
-  3. Technical detail: confusion matrix, precision / recall / F1, run setup (collapsed).
+  2. Behind "See full results": by type of mistake, claim checking, corrections, failures.
+  3. Inside that, collapsed: confusion matrix, precision / recall / F1, run setup.
 
 No API key or model is needed; the page only reads files in eval/results/. A new scored run
 appears in the selector automatically.
@@ -27,6 +27,8 @@ st.markdown("""
 .rv-kind {display:inline-flex; gap:0.5rem; align-items:center; background:#fff; border:1px solid var(--line);
   border-radius:999px; padding:0.3rem 0.9rem; font-size:0.85rem; color:var(--ink-2); margin:0.9rem 0 0.4rem;}
 .rv-kind b {color:var(--navy);}
+.rv-more {color:var(--ink-2); font-size:0.92rem; max-width:80ch; margin:0.4rem 0 0.4rem;}
+.st-key-rv_full {background:#fff; border-radius:999px; padding:0.45rem 1rem; display:inline-flex !important; width:auto !important; box-shadow:var(--shadow); margin-bottom:0.8rem;}
 .rv-note {color:var(--ink-3); font-size:0.86rem; max-width:80ch; margin:0 0 1rem 0;}
 .rv-card {background:#fff; border:1px solid var(--line); border-radius:var(--radius); box-shadow:var(--shadow);
   padding:1.2rem 1.4rem; height:100%;}
@@ -223,103 +225,109 @@ st.markdown('<div class="rv-tiles">'
                          f'median · slowest 5% {seconds(ts.get("p95"))}', "Lower is better")
             + '</div>', unsafe_allow_html=True)
 
-# ---------- 2. three panels (for judges) ----------
-c1, c2, c3 = st.columns([1, 1.25, 1])
-with c1:
-    st.markdown('<div class="rv-card"><div class="rv-h">Claims checked correctly</div>'
-                '<div class="rv-sub">Each answer is split into single claims; TrustGuard\'s status for each is '
-                'compared with the team\'s label.</div>'
-                + gauge(C.get("accuracy"), "Claims checked correctly")
-                + f'<div class="rv-sub" style="text-align:center;margin-top:0.5rem">Wrong claims marked contradicted: '
-                f'<b>{ratio(C.get("critical_error_recall"))[0]}</b> · citations correct: '
-                f'<b>{ratio(C.get("citation_accuracy_auto"))[0]}</b></div></div>', unsafe_allow_html=True)
-with c2:
-    bars = "".join(segments(SCENARIO_NAMES.get(k, k), s) for k, s in A.get("by_scenario", {}).items())
-    st.markdown('<div class="rv-card"><div class="rv-h">By type of mistake</div>'
-                '<div class="rv-sub">One block per answer. Hover a block for what happened.</div>' + bars
-                + '<div class="rv-key"><span><i style="background:var(--navy)"></i>Wrong, caught</span>'
-                '<span><i style="background:var(--bad)"></i>Wrong, missed</span>'
-                '<span><i style="background:var(--sky)"></i>Correct, not flagged</span>'
-                '<span><i style="background:#E0A100"></i>Correct, false alarm</span></div></div>',
-                unsafe_allow_html=True)
-with c3:
-    judged = A.get("correction_accuracy") or {}
-    st.markdown('<div class="rv-card"><div class="rv-h">Suggested corrections</div>'
-                '<div class="rv-sub">For a wrong answer, TrustGuard writes a corrected one and re-checks it three '
-                'independent ways.</div><div class="rv-list">'
-                f'<div class="rv-item"><div class="av">S</div><div><b>Suggested</b><small>corrections written</small>'
-                f'</div><div class="amt">{A.get("corrections_suggested", 0)}</div></div>'
-                f'<div class="rv-item"><div class="av">R</div><div><b>Passed re-checks</b><small>citation · rules · '
-                f'entailment</small></div><div class="amt">{ratio(A.get("correction_support_rate"))[0]}</div></div>'
-                f'<div class="rv-item"><div class="av">P</div><div><b>Judged correct by a person</b><small>'
-                f'{"" if judged.get("den") else "not labelled yet"}</small></div>'
-                f'<div class="amt">{ratio(judged)[0]}</div></div></div></div>', unsafe_allow_html=True)
-    if not judged.get("den"):
-        st.caption("Passing the automatic re-checks isn't the same as being right: until a person judges the "
-                   "corrections, we claim that TrustGuard detects mistakes, not that it fixes them.")
-
-# ---------- 3. where it went wrong ----------
-st.markdown('<div class="rv-h" style="margin-top:1.4rem">Where TrustGuard went wrong</div>'
-            '<div class="rv-sub">Every miss from this run. We show these on purpose: they are where the next '
-            'improvements come from.</div>', unsafe_allow_html=True)
-sections = failure_sections(run.failures_md)
-if sections:
-    st.markdown('<div class="rv-list">' + "".join(
-        f'<div class="rv-item"><div class="av">{i}</div><div><b>{esc(t)}</b><small>'
-        f'{"none in this run" if not n else "see the details below"}</small></div>'
-        f'<div class="amt {"ok" if not n else "bad"}">{n}</div></div>' for i, (t, n) in enumerate(sections, 1))
-        + '</div>', unsafe_allow_html=True)
-if m.get("errors"):
-    st.warning(f"{m['errors']} question(s) errored during the run and are not counted.")
-
-# ---------- 4. technical detail (collapsed) ----------
-st.markdown('<div class="rv-h" style="margin-top:1.4rem">Full details</div>', unsafe_allow_html=True)
-with st.expander("Failures, item by item"):
-    md = run.failures_md
-    st.markdown(md.split("\n", 1)[1] if md.startswith("#") else (md or "No failures.md in this folder."))
-
-with st.expander("Results by type of mistake (table)"):
-    rows = "".join(f'<tr><td>{esc(SCENARIO_NAMES.get(k, k))}</td><td>{s["answers"]}</td><td>{s["agent1_wrong"]}</td>'
-                   f'<td>{s["wrong_caught"]} of {s["agent1_wrong"]}</td><td>{s["flagged"]}</td></tr>'
-                   for k, s in A.get("by_scenario", {}).items())
-    st.markdown('<table class="ev-table"><thead><tr><th>Type of question</th><th>Answers</th>'
-                '<th>Assistant wrong</th><th>Wrong answers caught</th><th>Flagged by TrustGuard</th></tr></thead>'
-                f'<tbody>{rows}</tbody></table>', unsafe_allow_html=True)
-
+# ---------- layers 2 and 3: for judges and anyone who wants the evidence (hidden until asked for) ----------
 LABELS = [("SUPPORTED", "✓ Supported"), ("CONTRADICTED", "✕ Contradicted"),
           ("INSUFFICIENT_EVIDENCE", "? Insufficient evidence")]
-with st.expander("Claim checking: confusion matrix, precision, recall, F1"):
-    conf = C.get("confusion", {})
-    if conf:
-        head = "".join(f"<th>TrustGuard said: {lab}</th>" for _, lab in LABELS)
-        body = ""
-        for gold, glab in LABELS:
-            cells = ""
-            for pred, _ in LABELS:
-                n = conf.get(gold, {}).get(pred, 0)
-                cells += f'<td class="{"diag" if gold == pred and n else ("off" if n else "")}">{n}</td>'
-            body += f"<tr><td>Correct label: {glab}</td>{cells}</tr>"
-        st.markdown('<table class="ev-table"><caption>Rows are the correct label; columns are what TrustGuard said. '
-                    'Green cells are agreements; a number in a red cell is a mistake.</caption>'
-                    f'<thead><tr><th></th>{head}</tr></thead><tbody>{body}</tbody></table>', unsafe_allow_html=True)
-    rows = ""
-    for key, lab in LABELS:
-        pc = C.get("per_class", {}).get(key)
-        if pc:
-            rows += (f'<tr><td>{lab}</td><td>{pc["precision"]}</td><td>{pc["recall"]}</td><td>{pc["f1"]}</td>'
-                     f'<td>{pc["support"]}</td></tr>')
-    st.markdown('<table class="ev-table"><thead><tr><th>Status</th><th>Precision</th><th>Recall</th><th>F1</th>'
-                f'<th>Claims</th></tr></thead><tbody>{rows}</tbody></table>', unsafe_allow_html=True)
-    st.caption(f"Macro F1: {C.get('macro_f1', 'n/a')} · correct claims flagged anyway: "
-               f"{ratio(C.get('false_positive_rate'))[0]}. Precision: of the claims TrustGuard gave this status, "
-               "how many really had it. Recall: of the claims that really had it, how many TrustGuard found.")
+st.markdown('<div class="rv-more">The numbers above are the short answer. The full results show how they '
+            'break down by type of mistake, how each claim was checked, the suggested corrections, and every case '
+            'TrustGuard got wrong.</div>', unsafe_allow_html=True)
+if st.toggle("See full results", key="rv_full",
+             help="By type of mistake, claim checking, corrections and failures; technical tables at the bottom."):
+    # ---------- 2. three panels (for judges) ----------
+    c1, c2, c3 = st.columns([1, 1.25, 1])
+    with c1:
+        st.markdown('<div class="rv-card"><div class="rv-h">Claims checked correctly</div>'
+                    '<div class="rv-sub">Each answer is split into single claims; TrustGuard\'s status for each is '
+                    'compared with the team\'s label.</div>'
+                    + gauge(C.get("accuracy"), "Claims checked correctly")
+                    + f'<div class="rv-sub" style="text-align:center;margin-top:0.5rem">Wrong claims marked contradicted: '
+                    f'<b>{ratio(C.get("critical_error_recall"))[0]}</b> · citations correct: '
+                    f'<b>{ratio(C.get("citation_accuracy_auto"))[0]}</b></div></div>', unsafe_allow_html=True)
+    with c2:
+        bars = "".join(segments(SCENARIO_NAMES.get(k, k), s) for k, s in A.get("by_scenario", {}).items())
+        st.markdown('<div class="rv-card"><div class="rv-h">By type of mistake</div>'
+                    '<div class="rv-sub">One block per answer. Hover a block for what happened.</div>' + bars
+                    + '<div class="rv-key"><span><i style="background:var(--navy)"></i>Wrong, caught</span>'
+                    '<span><i style="background:var(--bad)"></i>Wrong, missed</span>'
+                    '<span><i style="background:var(--sky)"></i>Correct, not flagged</span>'
+                    '<span><i style="background:#E0A100"></i>Correct, false alarm</span></div></div>',
+                    unsafe_allow_html=True)
+    with c3:
+        judged = A.get("correction_accuracy") or {}
+        st.markdown('<div class="rv-card"><div class="rv-h">Suggested corrections</div>'
+                    '<div class="rv-sub">For a wrong answer, TrustGuard writes a corrected one and re-checks it three '
+                    'independent ways.</div><div class="rv-list">'
+                    f'<div class="rv-item"><div class="av">S</div><div><b>Suggested</b><small>corrections written</small>'
+                    f'</div><div class="amt">{A.get("corrections_suggested", 0)}</div></div>'
+                    f'<div class="rv-item"><div class="av">R</div><div><b>Passed re-checks</b><small>citation · rules · '
+                    f'entailment</small></div><div class="amt">{ratio(A.get("correction_support_rate"))[0]}</div></div>'
+                    f'<div class="rv-item"><div class="av">P</div><div><b>Judged correct by a person</b><small>'
+                    f'{"" if judged.get("den") else "not labelled yet"}</small></div>'
+                    f'<div class="amt">{ratio(judged)[0]}</div></div></div></div>', unsafe_allow_html=True)
+        if not judged.get("den"):
+            st.caption("Passing the automatic re-checks isn't the same as being right: until a person judges the "
+                       "corrections, we claim that TrustGuard detects mistakes, not that it fixes them.")
 
-with st.expander("How this test was set up"):
-    st.markdown(f"- **Kind:** {esc(run.kind)}\n"
-                f"- **TrustGuard model:** {esc(info.get('trustguard_model') or 'n/a')}\n"
-                f"- **Assistant (Agent 1) model:** {esc(info.get('agent1_model') or 'n/a (fixed answers)')}\n"
-                f"- **Evidence search:** {esc(info.get('retriever') or 'n/a')}\n"
-                f"- **Entailment model (check C):** {esc(info.get('nli') or 'n/a')}\n"
-                f"- **Times each question was asked:** {esc(info.get('runs', 1))}\n"
-                f"- **Results folder:** eval/results/{esc(run.folder)}")
-    st.caption("Every number on this page is read from metrics.json, exactly as eval/compute_metrics.py wrote it.")
+    # ---------- 3. where it went wrong ----------
+    st.markdown('<div class="rv-h" style="margin-top:1.4rem">Where TrustGuard went wrong</div>'
+                '<div class="rv-sub">Every miss from this run. We show these on purpose: they are where the next '
+                'improvements come from.</div>', unsafe_allow_html=True)
+    sections = failure_sections(run.failures_md)
+    if sections:
+        st.markdown('<div class="rv-list">' + "".join(
+            f'<div class="rv-item"><div class="av">{i}</div><div><b>{esc(t)}</b><small>'
+            f'{"none in this run" if not n else "see the details below"}</small></div>'
+            f'<div class="amt {"ok" if not n else "bad"}">{n}</div></div>' for i, (t, n) in enumerate(sections, 1))
+            + '</div>', unsafe_allow_html=True)
+    if m.get("errors"):
+        st.warning(f"{m['errors']} question(s) errored during the run and are not counted.")
+
+    # ---------- 4. technical detail (collapsed) ----------
+    st.markdown('<div class="rv-h" style="margin-top:1.4rem">Full details</div>', unsafe_allow_html=True)
+    with st.expander("Failures, item by item"):
+        md = run.failures_md
+        st.markdown(md.split("\n", 1)[1] if md.startswith("#") else (md or "No failures.md in this folder."))
+
+    with st.expander("Results by type of mistake (table)"):
+        rows = "".join(f'<tr><td>{esc(SCENARIO_NAMES.get(k, k))}</td><td>{s["answers"]}</td><td>{s["agent1_wrong"]}</td>'
+                       f'<td>{s["wrong_caught"]} of {s["agent1_wrong"]}</td><td>{s["flagged"]}</td></tr>'
+                       for k, s in A.get("by_scenario", {}).items())
+        st.markdown('<table class="ev-table"><thead><tr><th>Type of question</th><th>Answers</th>'
+                    '<th>Assistant wrong</th><th>Wrong answers caught</th><th>Flagged by TrustGuard</th></tr></thead>'
+                    f'<tbody>{rows}</tbody></table>', unsafe_allow_html=True)
+
+    with st.expander("Claim checking: confusion matrix, precision, recall, F1"):
+        conf = C.get("confusion", {})
+        if conf:
+            head = "".join(f"<th>TrustGuard said: {lab}</th>" for _, lab in LABELS)
+            body = ""
+            for gold, glab in LABELS:
+                cells = ""
+                for pred, _ in LABELS:
+                    n = conf.get(gold, {}).get(pred, 0)
+                    cells += f'<td class="{"diag" if gold == pred and n else ("off" if n else "")}">{n}</td>'
+                body += f"<tr><td>Correct label: {glab}</td>{cells}</tr>"
+            st.markdown('<table class="ev-table"><caption>Rows are the correct label; columns are what TrustGuard said. '
+                        'Green cells are agreements; a number in a red cell is a mistake.</caption>'
+                        f'<thead><tr><th></th>{head}</tr></thead><tbody>{body}</tbody></table>', unsafe_allow_html=True)
+        rows = ""
+        for key, lab in LABELS:
+            pc = C.get("per_class", {}).get(key)
+            if pc:
+                rows += (f'<tr><td>{lab}</td><td>{pc["precision"]}</td><td>{pc["recall"]}</td><td>{pc["f1"]}</td>'
+                         f'<td>{pc["support"]}</td></tr>')
+        st.markdown('<table class="ev-table"><thead><tr><th>Status</th><th>Precision</th><th>Recall</th><th>F1</th>'
+                    f'<th>Claims</th></tr></thead><tbody>{rows}</tbody></table>', unsafe_allow_html=True)
+        st.caption(f"Macro F1: {C.get('macro_f1', 'n/a')} · correct claims flagged anyway: "
+                   f"{ratio(C.get('false_positive_rate'))[0]}. Precision: of the claims TrustGuard gave this status, "
+                   "how many really had it. Recall: of the claims that really had it, how many TrustGuard found.")
+
+    with st.expander("How this test was set up"):
+        st.markdown(f"- **Kind:** {esc(run.kind)}\n"
+                    f"- **TrustGuard model:** {esc(info.get('trustguard_model') or 'n/a')}\n"
+                    f"- **Assistant (Agent 1) model:** {esc(info.get('agent1_model') or 'n/a (fixed answers)')}\n"
+                    f"- **Evidence search:** {esc(info.get('retriever') or 'n/a')}\n"
+                    f"- **Entailment model (check C):** {esc(info.get('nli') or 'n/a')}\n"
+                    f"- **Times each question was asked:** {esc(info.get('runs', 1))}\n"
+                    f"- **Results folder:** eval/results/{esc(run.folder)}")
+        st.caption("Every number on this page is read from metrics.json, exactly as eval/compute_metrics.py wrote it.")

@@ -116,7 +116,7 @@ st.markdown('<div class="tg-hero"><h1><span class="tg-logo" aria-hidden="true">�
             '<span class="tg-pill">Synthetic policies, not OCBC policy</span></div>',
             unsafe_allow_html=True)
 st.markdown(
-    '<div class="tg-flow" aria-label="How the two agents work together">'
+    f'<div class="tg-flow{" compact" if st.session_state.get("turns") else ""}" aria-label="How the two agents work together">'
     '<div><em aria-hidden="true">💬</em><b>You</b><span>type a question</span></div><i aria-hidden="true">→</i>'
     '<div class="a1"><em aria-hidden="true">🏦</em><b>Agent 1 · Banking AI Assistant</b>'
     '<span>answers fast (cheaper model)</span></div><i aria-hidden="true">→</i>'
@@ -183,6 +183,13 @@ def ask(question: str) -> None:
 
 with st.sidebar:
     page_nav()
+    st.markdown("### Try a question")
+    st.caption("Or type your own in the chat box. Examples only fill in the question; the assistant answers live.")
+    for i, q in enumerate(demo_questions()):
+        st.button(q["label"], key=f"ex_side_{i}", help=q["question"], on_click=ask, args=(q["question"],),
+                  use_container_width=True, disabled=assistant is None)
+    st.button("Clear conversation", on_click=lambda: st.session_state.update(turns=[]), use_container_width=True)
+
     st.markdown("### Display mode")
     audit = st.toggle("Audit mode: always show every step", key="audit_mode",
                       help="Off (daily mode): a verified answer shows a ✓ badge, with “Show how” one click away. "
@@ -191,12 +198,6 @@ with st.sidebar:
     st.caption("Audit mode is on: every check is shown." if audit else
                "Daily mode: the explanation opens automatically only when something needs your attention.")
 
-    st.markdown("### Try a question")
-    st.caption("Or type your own in the chat box. Examples only fill in the question; the assistant answers live.")
-    for i, q in enumerate(demo_questions()):
-        st.button(q["label"], key=f"ex_side_{i}", help=q["question"], on_click=ask, args=(q["question"],),
-                  use_container_width=True, disabled=assistant is None)
-    st.button("Clear conversation", on_click=lambda: st.session_state.update(turns=[]), use_container_width=True)
 
     SCOPE_TEXT = {"all": "The same policy repository as TrustGuard, including superseded versions. "
                          "It indexes the text only, without checking versions or effective dates.",

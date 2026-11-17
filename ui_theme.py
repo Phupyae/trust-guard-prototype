@@ -3,7 +3,8 @@
 Colours, fonts and the status chips live here once, so a UI/UX change made in this file shows up
 on every page. Page-specific styles stay in the page itself.
 
-Visual direction (Nov 2026): based on the "Cairo" digital banking template the team chose.
+Visual direction (Nov 2026): based on the "Cairo" digital banking template the team chose;
+the team picked a navy sidebar with a sky-blue page (DESIGN_CSS, applied on top of BASE_CSS).
   - Deep navy for the header and primary actions; pale blue-grey page; content on white cards
   - Large rounded corners, circular icon badges, pill-shaped buttons
   - Big, bold numbers with a small caption underneath
@@ -175,25 +176,23 @@ h1, h2, h3 {color:var(--ink); letter-spacing:-0.015em;}
 """
 
 
-# ---------- design options (team is choosing; the picker in the sidebar switches between them) ----------
-# Each option only overrides colours, fonts and a few shapes on top of BASE_CSS. Layout and content are the
-# same in all of them, so whichever one is picked, nothing else in the app has to change.
-DESIGNS = {
-    "classic": {
-        "label": "A · Cairo classic",
-        "about": "Navy gradient header, white sidebar, white cards on pale grey. Closest to the template.",
-        "css": "",
-    },
-    "navy": {
-        "label": "B · Navy sidebar",
-        "about": "Dark navy sidebar like the template's presentation pages; light header card with a navy title.",
-        "css": """
+# ---------- chosen design (Nov 2026): navy sidebar (option B) + sky-blue page (option C) ----------
+DESIGN_CSS = """
 <style>
-@import url('https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600;9..40,700&display=swap');
-:root {--page:#F5F7FB; --tint:#EAF1FD; --accent:#2F6BE0; --radius:14px;}
-html, body, .stApp, .stMarkdown, input, textarea, button, label, [data-testid="stSidebar"] {
-  font-family:'DM Sans', system-ui, sans-serif !important;}
-/* Sidebar: navy, white text */
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
+:root {--page:#DCEAF8; --panel:#F4F8FD; --tint:#E8F1FC; --line:#D3E1F1; --accent:#2F6BE0; --radius:22px;
+  --shadow:0 2px 6px rgba(14,37,88,0.05), 0 12px 32px rgba(14,37,88,0.08);}
+html, body, .stApp, .stMarkdown, input, textarea, button, label, [data-testid="stSidebar"],
+h1, h2, h3, .tg-hero h1, .rv-title, .rv-big, .rv-tile .v, .rv-h, .tg-brand, .rv-gauge .num {
+  font-family:'Plus Jakarta Sans', system-ui, sans-serif !important;}
+
+/* Page: sky-blue backdrop (from the template's photo); content on white cards with no borders */
+.stApp {background:linear-gradient(180deg, #CFE2F7 0%, #E6F0FB 420px, #EEF4FB 100%);}
+[data-testid="stBottomBlockContainer"], [data-testid="stBottom"] > div {background:#EEF4FB;}
+.tg-verdict, .rv-card, .rv-tile, .tg-legend, .tg-flow div, [data-testid="stChatMessage"],
+[data-testid="stExpander"] details {border:none !important;}
+
+/* Sidebar: navy (from the template's presentation pages), white text */
 [data-testid="stSidebar"] {background:linear-gradient(180deg, #0B1F4D 0%, #12306E 100%); border-right:none;}
 [data-testid="stSidebar"] *, [data-testid="stSidebar"] .stMarkdown p,
 [data-testid="stSidebar"] [data-testid="stCaptionContainer"] {color:#D5E0F5;}
@@ -205,89 +204,65 @@ html, body, .stApp, .stMarkdown, input, textarea, button, label, [data-testid="s
 [data-testid="stSidebar"] .stButton button[kind="secondary"] {background:rgba(255,255,255,0.07);
   border:1px solid rgba(255,255,255,0.16); box-shadow:none;}
 [data-testid="stSidebar"] .stButton button[kind="secondary"] p {color:#fff;}
-[data-testid="stSidebar"] .stButton button[kind="secondary"]:hover {background:rgba(255,255,255,0.16);
-  border-color:#fff;}
-[data-testid="stSidebar"] [data-testid="stExpander"] details {background:rgba(255,255,255,0.06);
-  border-color:rgba(255,255,255,0.16) !important;}
+[data-testid="stSidebar"] .stButton button[kind="secondary"]:hover {background:rgba(255,255,255,0.16); border-color:#fff;}
+[data-testid="stSidebar"] [data-testid="stExpander"] details {background:rgba(255,255,255,0.06);}
 [data-testid="stSidebar"] [data-testid="stExpander"] details * {color:#D5E0F5;}
-[data-testid="stSidebar"] [data-baseweb="select"] > div {background:rgba(255,255,255,0.08); border-color:rgba(255,255,255,0.2);}
-[data-testid="stSidebar"] .tg-chip {background:#fff;} [data-testid="stSidebar"] .tg-chip * {color:inherit;}
-[data-testid="stSidebar"] .tg-ok {color:var(--ok) !important;} [data-testid="stSidebar"] .tg-neutral {color:var(--neutral) !important;}
+[data-testid="stSidebar"] .tg-chip {background:#fff;}
+[data-testid="stSidebar"] .tg-ok, [data-testid="stSidebar"] .tg-ok * {color:var(--ok) !important;}
+[data-testid="stSidebar"] .tg-neutral, [data-testid="stSidebar"] .tg-neutral * {color:var(--neutral) !important;}
 [data-testid="stSidebar"] .tg-kb .t {color:#fff;}
 [data-testid="stSidebar"] [data-testid="stAlert"] * {color:#5C3D00 !important;}
-[data-testid="stSidebar"] [data-testid="stCheckbox"] label > div:first-child {background:rgba(255,255,255,0.35);}
-/* Header: white card, navy title, sky accent band on the left */
-.tg-hero {background:#fff; color:var(--ink); border:1px solid var(--line); border-left:10px solid var(--sky);
-  border-radius:var(--radius);}
-.tg-hero h1 {color:var(--navy) !important;}
-.tg-hero h1 .tg-logo {background:var(--navy); color:#fff;}
-.tg-hero p {color:var(--ink-2);} .tg-hero p b {color:var(--navy);}
-.tg-hero .tg-pill {background:var(--tint); color:var(--navy); border-color:var(--sky);}
-.tg-flow div.a2 {background:var(--navy);} .tg-flow div.a2 b {color:#fff;} .tg-flow div.a2 span {color:#C9D7F2;}
-.tg-flow div.a2 em {background:#fff; color:var(--navy);}
-[data-testid="stChatMessage"] {border-radius:var(--radius);}
-</style>
-""",
-    },
-    "sky": {
-        "label": "C · Sky blue",
-        "about": "Pale sky-blue page like the template's photo backdrop; big bold title with no box; extra-round cards.",
-        "css": """
-<style>
-@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
-:root {--page:#DCEAF8; --panel:#F4F8FD; --tint:#E8F1FC; --line:#D3E1F1; --radius:24px;
-  --shadow:0 2px 6px rgba(14,37,88,0.05), 0 12px 32px rgba(14,37,88,0.08);}
-html, body, .stApp, .stMarkdown, input, textarea, button, label, [data-testid="stSidebar"],
-h1, h2, h3, .tg-hero h1, .rv-title, .rv-big, .rv-tile .v, .rv-h, .tg-brand {
-  font-family:'Plus Jakarta Sans', system-ui, sans-serif !important;}
-.stApp {background:linear-gradient(180deg, #CFE2F7 0%, #E6F0FB 420px, #EEF4FB 100%);}
-[data-testid="stSidebar"] {background:rgba(255,255,255,0.72); backdrop-filter:blur(8px); border-right:none;}
-/* Header: no box, very large navy title like "Banking Reimagined" */
+[data-testid="stSidebar"] [data-testid="stCheckbox"] label:has(input:not(:checked)) > div:first-of-type {background:rgba(255,255,255,0.35) !important;}
+[data-testid="stSidebar"] [data-testid="stCheckbox"] label:has(input:checked) > div:first-of-type {background:#7FA6F0 !important;}
+
+/* Header: no box, very large navy title (like "Banking Reimagined") */
 .tg-hero {background:transparent; box-shadow:none; padding:0.6rem 0 1rem 0; color:var(--ink);}
 .tg-hero h1 {color:var(--navy) !important; font-size:2.9rem; line-height:1.05; letter-spacing:-0.035em;}
-.tg-hero h1 .tg-logo {background:var(--navy); color:#fff; width:3.1rem; height:3.1rem;}
+.tg-hero h1 .tg-logo {background:var(--navy); color:#fff; width:3.1rem; height:3.1rem; flex:none; margin-right:0.25rem;}
 .tg-hero p {color:var(--ink-2); font-size:1.08rem;} .tg-hero p b {color:var(--navy);}
 .tg-hero .tg-pill {background:#fff; color:var(--navy); border:none; box-shadow:var(--shadow);}
-.tg-flow div {border:none;} .tg-flow div.a2 em, .tg-flow div em {background:var(--navy); color:#fff;}
-[data-testid="stChatMessage"] {border:none; border-radius:var(--radius);}
-[data-testid="stChatMessage"]:has(.tg-you) {background:var(--navy);}
+
+/* "How it works" strip: TrustGuard's card is navy. Once the chat starts it shrinks to one slim row. */
+.tg-flow div em {background:var(--tint); color:var(--navy);}
+.tg-flow div.a2 {background:var(--navy);} .tg-flow div.a2 b {color:#fff;} .tg-flow div.a2 span {color:#C9D7F2;}
+.tg-flow div.a2 em {background:#fff; color:var(--navy);}
+.tg-flow.compact {gap:0.4rem; margin-bottom:1rem;}
+.tg-flow.compact div {flex:1 1 auto; display:flex; align-items:center; gap:0.5rem; padding:0.45rem 0.8rem;
+  border-radius:999px; box-shadow:none;}
+.tg-flow.compact div em {width:1.6rem; height:1.6rem; font-size:0.8rem; margin:0;}
+.tg-flow.compact div span {display:none;} .tg-flow.compact b {font-size:0.82rem;}
+
+/* Chat: the employee's own messages are navy bubbles on the right; the agents stay white, on the left */
+[data-testid="stChatMessage"] {border-radius:var(--radius);}
+[data-testid="stChatMessage"]:has(.tg-you) {background:var(--navy); flex-direction:row-reverse; max-width:72%;
+  margin-left:auto; box-shadow:var(--shadow);}
 [data-testid="stChatMessage"]:has(.tg-you) p {color:#fff;}
-[data-testid="stChatMessage"]:has(.tg-you) [data-testid^="stChatMessageAvatar"] {background:rgba(255,255,255,0.15) !important; color:#fff;}
-[data-testid="stBottomBlockContainer"], [data-testid="stBottom"] > div {background:#EEF4FB;}
-.tg-verdict, .rv-card, .rv-tile, .tg-legend, [data-testid="stExpander"] details {border:none !important;}
+[data-testid="stChatMessage"]:has(.tg-you) [data-testid^="stChatMessageAvatar"] {background:rgba(255,255,255,0.15) !important;
+  color:#fff;}
+[data-testid="stChatMessage"]:has(.tg-you) [data-testid="stChatMessageContent"] {text-align:right;}
+
+/* "How TrustGuard gets the answer": numbered circles joined by a line, read top to bottom */
+.tg-steps li {position:relative; border-bottom:none !important; padding:0.3rem 0 0.7rem 0;}
+.tg-steps li:not(:last-child)::before {content:""; position:absolute; left:0.85rem; top:2.1rem; bottom:-0.1rem;
+  width:2px; background:var(--sky);}
+.tg-steps .n {display:flex; align-items:center; justify-content:center; width:1.75rem; height:1.75rem; min-width:1.75rem;
+  border-radius:50%; background:var(--navy); color:#fff; font-size:0 !important;}
+.tg-steps li {counter-increment:tgstep;} .tg-steps {counter-reset:tgstep;}
+.tg-steps .n::after {content:counter(tgstep); font-size:13px; font-weight:800; color:#fff;}
+
+/* Suggested answer: citations as small pills */
+.tg-fix {border-radius:var(--radius); border:none; border-left:6px solid var(--navy); box-shadow:var(--shadow);}
+.tg-fix .cite {display:inline-block; background:var(--tint); color:var(--navy) !important; border-radius:999px;
+  padding:0.05rem 0.55rem; font-weight:600;}
 .stButton button[kind="secondary"] {background:#fff;}
+.stDownloadButton button {background:var(--tint); border:1px solid var(--sky);}
+@media (max-width:720px) {[data-testid="stChatMessage"]:has(.tg-you) {max-width:100%;}}
 </style>
-""",
-    },
-}
-DEFAULT_DESIGN = "classic"
-
-
-def current_design() -> str:
-    """The picked option is kept in session state, so it stays the same on every page. A link can also
-    choose one with ?design=navy (handy for screenshots and for showing the team)."""
-    asked = st.query_params.get("design")
-    if asked in DESIGNS and st.session_state.get("_design_from_url") != asked:
-        st.session_state["design_choice"] = asked
-        st.session_state["_design_from_url"] = asked
-    return st.session_state.setdefault("design_choice", DEFAULT_DESIGN)
-
-
-def design_picker() -> None:
-    """Temporary: lets the team compare the options. Remove it once one is chosen (set DEFAULT_DESIGN)."""
-    keys = list(DESIGNS)
-
-    def remember():
-        st.session_state["design_choice"] = st.session_state["_design_widget"]
-
-    st.markdown("### Design option")
-    st.radio("Design option", keys, index=keys.index(current_design()), key="_design_widget",
-             format_func=lambda k: DESIGNS[k]["label"], on_change=remember, label_visibility="collapsed")
-    st.caption(DESIGNS[current_design()]["about"])
+"""
 
 
 def apply_base_theme() -> None:
-    st.markdown(BASE_CSS + DESIGNS[current_design()]["css"], unsafe_allow_html=True)
+    st.markdown(BASE_CSS + DESIGN_CSS, unsafe_allow_html=True)
 
 
 def page_nav() -> None:
@@ -299,7 +274,6 @@ def page_nav() -> None:
         st.page_link("pages/reliability.py", label="How reliable is TrustGuard?", icon=":material/verified_user:")
     except StreamlitAPIException:  # page opened on its own (e.g. in tests), not through app.py
         pass
-    design_picker()
 
 
 def reliability_link() -> None:
