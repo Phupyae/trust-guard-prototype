@@ -7,3 +7,7 @@ textColor = "#14233A"
 
 [server]
 headless = true
+
+[client]
+# Pages are linked from the sidebar by ui_theme.page_nav() instead, with readable names.
+showSidebarNavigation = false
