@@ -286,7 +286,13 @@ if st.toggle("See full results", key="rv_full",
     st.markdown('<div class="rv-h" style="margin-top:1.4rem">Full details</div>', unsafe_allow_html=True)
     with st.expander("Failures, item by item"):
         md = run.failures_md
-        st.markdown(md.split("\n", 1)[1] if md.startswith("#") else (md or "No failures.md in this folder."))
+        if not md:
+            st.caption("No failures.md in this folder.")
+        # failures.md uses big "##" headings; show each as a small title so it fits the page
+        for block in re.split(r"^## ", md, flags=re.M)[1:]:
+            title, _, body = block.partition("\n")
+            st.markdown(f'<div class="rv-fail-h">{esc(title.strip())}</div>', unsafe_allow_html=True)
+            st.markdown(body.strip() or "- none")
 
     with st.expander("Results by type of mistake (table)"):
         rows = "".join(f'<tr><td>{esc(SCENARIO_NAMES.get(k, k))}</td><td>{s["answers"]}</td><td>{s["agent1_wrong"]}</td>'

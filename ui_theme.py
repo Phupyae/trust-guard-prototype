@@ -257,8 +257,34 @@ h1, h2, h3, .tg-hero h1, .rv-title, .rv-big, .rv-tile .v, .rv-h, .tg-brand, .rv-
 .stButton button[kind="secondary"] {background:#fff;}
 .stDownloadButton button {background:var(--tint); border:1px solid var(--sky);}
 @media (max-width:720px) {[data-testid="stChatMessage"]:has(.tg-you) {max-width:100%;}}
+.tg-ico {display:inline-block; vertical-align:-0.15em; flex:none;}
+[data-testid="stSidebar"] .tg-brand span .tg-ico, [data-testid="stSidebar"] .tg-brand span .tg-ico * {color:var(--navy) !important;}
+.tg-brand span, .tg-hero h1 .tg-logo, .tg-flow div em, .tg-intercept > span {align-items:center; justify-content:center;}
+.tg-intercept > span {display:flex; width:2.2rem; height:2.2rem; border-radius:50%; background:#fff; color:var(--navy);}
+.tg-pill .tg-ico {margin-right:0.3rem;}
+/* Failures, item by item: section titles at the same size as the rest of the page */
+.rv-fail-h {font-weight:700; color:var(--navy); font-size:0.95rem; margin:0.8rem 0 0.1rem;}
 </style>
 """
+
+
+# ---------- line icons (replace decorative emoji, which the team felt looked AI-generated) ----------
+# Simple outline icons in the style of the template (shapes based on the open-source Lucide set, ISC licence).
+# They take the text colour of wherever they sit. ✓ ✕ ? stay as text: they are status marks, not decoration.
+_ICON_PATHS = {
+    "shield": '<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>',
+    "bank": '<path d="M3 22h18"/><path d="M6 18v-7"/><path d="M10 18v-7"/><path d="M14 18v-7"/><path d="M18 18v-7"/>'
+            '<path d="M12 2l8 5H4z"/>',
+    "message": '<path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>',
+    "check": '<path d="M20 6 9 17l-5-5"/>',
+    "clock": '<circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/>',
+}
+
+
+def icon(name: str, size: str = "1.1em") -> str:
+    return (f'<svg class="tg-ico" width="{size}" height="{size}" viewBox="0 0 24 24" fill="none" '
+            f'stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" '
+            f'aria-hidden="true">{_ICON_PATHS[name]}</svg>')
 
 
 def apply_base_theme() -> None:
@@ -268,7 +294,7 @@ def apply_base_theme() -> None:
 def page_nav() -> None:
     """Brand mark and links between the pages (the automatic page list is hidden in
     .streamlit/config.toml, because it would label the main page with its file name, "app")."""
-    st.markdown('<div class="tg-brand"><span aria-hidden="true">🛡️</span>TrustGuard</div>', unsafe_allow_html=True)
+    st.markdown(f'<div class="tg-brand"><span>{icon("shield", "1.05rem")}</span>TrustGuard</div>', unsafe_allow_html=True)
     try:
         st.page_link("app.py", label="Assistant", icon=":material/chat:")
         st.page_link("pages/reliability.py", label="How reliable is TrustGuard?", icon=":material/verified_user:")

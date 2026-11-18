@@ -36,7 +36,7 @@ from modules.nli import NLIChecker
 from modules.pipeline import InputError, Report, default_registry, run_pipeline
 from modules.policy_validation import PolicyContext, fmt
 from modules.schemas import CONTRADICTED, INSUFFICIENT_EVIDENCE, SUPPORTED
-from ui_theme import apply_base_theme, page_nav, reliability_link
+from ui_theme import apply_base_theme, icon, page_nav, reliability_link
 
 st.set_page_config(page_title="TrustGuard AI", page_icon="🛡️", layout="wide")
 
@@ -108,21 +108,21 @@ def raw_chip(key: str, icon: str, text: str) -> str:
 
 
 # ---------- header first, so the page is never blank while loading (Feedback) ----------
-st.markdown('<div class="tg-hero"><h1><span class="tg-logo" aria-hidden="true">🏦</span>Northbridge Bank AI Assistant</h1>'
+st.markdown('<div class="tg-hero"><h1><span class="tg-logo">' + icon("bank", "1.5rem") + '</span>Northbridge Bank AI Assistant</h1>'
             '<p>Ask about staff policies and branch procedures. Every answer is intercepted by '
             '<b>TrustGuard</b>, an independent verification layer, which shows how the right answer is reached '
             'from the policy in effect before you rely on it.</p>'
-            '<span class="tg-pill">Agent 1 answers live</span><span class="tg-pill">🛡️ Checked by TrustGuard</span>'
+            '<span class="tg-pill">Agent 1 answers live</span><span class="tg-pill">' + icon("shield", "0.95em") + 'Checked by TrustGuard</span>'
             '<span class="tg-pill">Synthetic policies, not OCBC policy</span></div>',
             unsafe_allow_html=True)
 st.markdown(
     f'<div class="tg-flow{" compact" if st.session_state.get("turns") else ""}" aria-label="How the two agents work together">'
-    '<div><em aria-hidden="true">💬</em><b>You</b><span>type a question</span></div><i aria-hidden="true">→</i>'
-    '<div class="a1"><em aria-hidden="true">🏦</em><b>Agent 1 · Banking AI Assistant</b>'
+    '<div><em>' + icon("message") + '</em><b>You</b><span>type a question</span></div><i aria-hidden="true">→</i>'
+    '<div class="a1"><em>' + icon("bank") + '</em><b>Agent 1 · Banking AI Assistant</b>'
     '<span>answers fast (cheaper model)</span></div><i aria-hidden="true">→</i>'
-    '<div class="a2"><em aria-hidden="true">🛡️</em><b>TrustGuard</b><span>derives the answer from the policy in '
+    '<div class="a2"><em>' + icon("shield") + '</em><b>TrustGuard</b><span>derives the answer from the policy in '
     'effect, compares, corrects and re-checks (stronger model)</span></div><i aria-hidden="true">→</i>'
-    '<div><em aria-hidden="true">✓</em><b>You</b><span>know what to trust, and why</span></div></div>', unsafe_allow_html=True)
+    '<div><em>' + icon("check") + '</em><b>You</b><span>know what to trust, and why</span></div></div>', unsafe_allow_html=True)
 
 
 # ---------- cached resources (loaded once per server, not per click) ----------
@@ -203,13 +203,13 @@ with st.sidebar:
                          "It indexes the text only, without checking versions or effective dates.",
                   "approved": "Current policy versions only", "none": "No documents (general knowledge only)"}
     st.markdown("### How the demo is set up")
-    with st.expander("🏦 Agent 1 · Banking AI Assistant"):
+    with st.expander("Agent 1 · Banking AI Assistant", icon=":material/account_balance:"):
         st.markdown(f"**Language model** (cheaper tier)  \n{assistant.model if assistant else 'not available'}")
         st.markdown(f"**Reads**  \n{SCOPE_TEXT.get(config.AGENT1_KB_SCOPE, config.AGENT1_KB_SCOPE)}")
         if agent1_retriever is not None:
             st.markdown(f"**Passages per question**  \nTop {config.AGENT1_TOP_K}")
         st.caption("Why a cheaper model? It answers every employee question, so cost and speed matter most.")
-    with st.expander("🛡️ TrustGuard · verification layer"):
+    with st.expander("TrustGuard · verification layer", icon=":material/shield:"):
         model_name = ("offline mock (not real verification)" if llm and llm.name == "mock"
                       else getattr(llm, "model", "") if llm else "not available")
         st.markdown(f"**Language model** (stronger tier)  \n{model_name}")
@@ -221,7 +221,7 @@ with st.sidebar:
             st.caption(nli.error)
     if retrieval_warning:
         st.warning(retrieval_warning)
-    with st.expander("📄 Policy repository"):
+    with st.expander("Policy repository", icon=":material/description:"):
         st.caption("Synthetic documents written for this demo. Not OCBC policy.")
         today = default_registry()
         for doc in load_metadata():
@@ -233,7 +233,7 @@ with st.sidebar:
                         f'<small>Version {esc(doc["version"])}, effective {esc(doc["effective_date"])}'
                         f'{", until " + esc(doc["expiry_date"]) if doc.get("expiry_date") else ""}</small></div>',
                         unsafe_allow_html=True)
-    with st.expander("🗂️ Logs and feedback"):
+    with st.expander("Logs and feedback", icon=":material/folder_open:"):
         counts = {s: len(event_log.read(s)) for s in ("verifications", "failures", "blocked_inputs", "feedback")}
         st.markdown(f"Verified answers: **{counts['verifications']}**  \nFindings and errors logged: "
                     f"**{counts['failures']}**  \nBlocked inputs: **{counts['blocked_inputs']}**  \n"
@@ -247,7 +247,7 @@ USER_MARK = '<span class="tg-you" hidden></span>'  # lets the theme style the em
 
 
 def held_chip() -> str:
-    return ('<div class="tg-held"><span class="tg-chip tg-rev"><b aria-hidden="true">⏸</b>'
+    return ('<div class="tg-held"><span class="tg-chip tg-rev"><b>' + icon("clock", "0.95em") + '</b>'
             'Intercepted by TrustGuard: checking before delivery</span></div>')
 
 
@@ -259,7 +259,7 @@ def verdict_chip(report: Report) -> str:
 
 def intercept_banner() -> None:
     st.markdown('<div class="tg-agent tg-a2">TRUSTGUARD · VERIFICATION LAYER</div>'
-                '<div class="tg-intercept"><span aria-hidden="true">🛡️</span><div>Answer intercepted'
+                '<div class="tg-intercept"><span>' + icon("shield") + '</span><div>Answer intercepted'
                 '<small>TrustGuard is working out the answer from the policy in effect and comparing it with '
                 'the assistant\'s answer before it is delivered.</small></div></div>', unsafe_allow_html=True)
 
@@ -388,7 +388,7 @@ def render_findings(report: Report, key: str) -> None:
     reliability_link()
     notes = list(report.input_notes) + ([report.as_of_note] if report.as_of_note else [])
     for n in notes:
-        st.caption(f"ℹ️ {n}")
+        st.caption(f":material/info: {n}")
     for w in report.coverage_warnings:
         st.warning(w)
 
