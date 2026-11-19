@@ -175,6 +175,28 @@ def test_question_amount_is_case_not_policy():
                                       ignore=policy_rules.case_quantities(q2, a2))[0] == "mismatch"
 
 
+def test_repeated_question_amount_inside_band_is_case():
+    # Live run, 19 Nov: Agent 1 answered correctly but REPEATED "$80,000", so case_quantities()
+    # no longer ignored it and the code check called a correct claim a mismatch ("Use with caution").
+    q = "A customer wants to withdraw $80,000 in cash at the branch today. Who needs to approve it?"
+    a = ("A cash withdrawal of $80,000 requires approval from both the Branch Manager and the Branch "
+         "Operations Head. The customer must give 1 business day of advance notice.")
+    claim = ("A cash withdrawal of $80,000 requires approval from both the Branch Manager and the Branch "
+             "Operations Head.")
+    section = ("Withdrawals above $50,000 require approval from both the Branch Manager and the Branch "
+               "Operations Head. The customer must give 1 business day of advance notice.")
+    ignore = policy_rules.case_quantities(q, a)
+    assert policy_rules.numeric_check(claim, section, ignore=ignore)[0] == "mismatch"  # the old bug
+    for unit, values in policy_rules.case_amounts_in_band(q, section).items():
+        ignore[unit] = ignore.get(unit, set()) | values
+    assert policy_rules.numeric_check(claim, section, ignore=ignore)[0] != "mismatch"
+    # Outside the band it is still compared: $80,000 does not belong in the "$20,000 to $50,000" band.
+    mid = "Withdrawals above $20,000 and up to $50,000 require Branch Manager approval."
+    assert policy_rules.case_amounts_in_band(q, mid) == {}
+    # And a waiver of $300 is outside "up to $50", so that claim is still a mismatch.
+    assert policy_rules.case_amounts_in_band("Can a CSO waive a $300 fee?", "Fees up to $50 may be waived.") == {}
+
+
 class AlteringExtractor:
     """Simulates an extractor that 'corrects' $200 to $150 and drops the deadline,
     while the judge happily agrees with the altered claim."""

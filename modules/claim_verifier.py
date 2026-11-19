@@ -179,7 +179,11 @@ def verify_claim(claim: Claim, question: str, evidence: list[Evidence], relevant
     # the quote, so a short quote can't hide a conflicting number.
     # Amounts from the question that the answer doesn't state describe the case, not the
     # policy: "$80,000" in "notice for a withdrawal of $80,000" is not a wrong threshold.
+    # The same holds when the answer repeats the amount ("A withdrawal of $80,000 requires
+    # both approvers") as long as it falls inside the cited section's band ("above $50,000").
     case = policy_rules.case_quantities(question, answer or claim.claim)
+    for unit, values in policy_rules.case_amounts_in_band(question, cited.text).items():
+        case[unit] = case.get(unit, set()) | values
     for result, message in (policy_rules.numeric_check(claim.claim, cited.text, ignore=case),
                             policy_rules.requirement_check(claim.claim, cited.text,
                                                            section_exemptions(cited.document_id, cited.section))):

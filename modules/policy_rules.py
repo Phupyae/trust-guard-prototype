@@ -65,6 +65,45 @@ def case_quantities(question: str, answer: str) -> dict[str, set[float]]:
     return {u: vs - a.get(u, set()) for u, vs in q.items() if vs - a.get(u, set())}
 
 
+# --- Amount bands ("Withdrawals above $50,000 require ...") ---------------------
+# Used by the claim verifier (T4) and by re-verification method C's band rule (T7).
+_MONEY = r"\$\s?(\d[\d,]*(?:\.\d+)?)"
+_BAND_LOW = rf"\b(?:above|over|more than|(?<!not )exceeding)\s+{_MONEY}"
+_BAND_HIGH = [rf"\b(?:up to|not exceeding|no more than|at most)\s+{_MONEY}", rf"{_MONEY}\s+or (?:less|below)"]
+
+
+def _num(s: str) -> float:
+    return float(s.replace(",", ""))
+
+
+def policy_band(text: str) -> tuple[float | None, float | None] | None:
+    """(lower bound, exclusive; upper bound, inclusive) of the money band a section states,
+    or None if it states none or more than one (then the rule doesn't apply)."""
+    lows = {_num(m) for m in re.findall(_BAND_LOW, text, flags=re.IGNORECASE)}
+    highs = {_num(m) for p in _BAND_HIGH for m in re.findall(p, text, flags=re.IGNORECASE)}
+    if len(lows) > 1 or len(highs) > 1 or not (lows or highs):
+        return None
+    return (next(iter(lows), None), next(iter(highs), None))
+
+
+def in_band(amount: float, band: tuple[float | None, float | None]) -> bool:
+    lo, hi = band
+    return (lo is None or amount > lo) and (hi is None or amount <= hi)
+
+
+def case_amounts_in_band(question: str, section: str) -> dict[str, set[float]]:
+    """Money amounts from the question that fall INSIDE the cited section's band.
+    "A cash withdrawal of $80,000 requires both approvers" applies "above $50,000" to the
+    customer's $80,000: the $80,000 describes the case, it is not a wrong threshold, even
+    when the answer repeats it. An amount OUTSIDE the band is still compared, so
+    "a CSO can waive $300" against "up to $50" stays a mismatch."""
+    band = policy_band(section)
+    if band is None:
+        return {}
+    inside = {v for v in extract_quantities(question).get("money", set()) if in_band(v, band)}
+    return {"money": inside} if inside else {}
+
+
 def numeric_check(claim: str, evidence: str, ignore: dict[str, set[float]] | None = None) -> tuple[str, str]:
     """Returns (result, message) where result is 'match', 'mismatch' or 'n/a'.
     `ignore`: quantities to skip, e.g. case_quantities() from the question."""
