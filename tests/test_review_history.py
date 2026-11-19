@@ -1,5 +1,5 @@
-"""Chat history (save / reopen) and the continuous-improvement analysis, on temporary log folders."""
-from modules import chat_history, event_log, improvement, review_queue
+"""Chat history (save / reopen) and showing an earlier review decision, on temporary log folders."""
+from modules import chat_history, review_queue
 from modules.pipeline import Report, report_from_dict
 from modules.schemas import (CompletenessResult, Correction, CorrectionSentence, RequiredElement,
                              VerificationResult)
@@ -39,32 +39,6 @@ def test_chat_id_cannot_escape_the_folder(tmp_path):
     import pytest
     with pytest.raises(ValueError):
         chat_history.load("../../config", tmp_path)
-
-
-def test_patterns_group_outdated_answers_and_track_outcome(tmp_path):
-    for _ in range(2):
-        event_log.log_report(_report(), log_dir=tmp_path)
-    ps = {p["kind"]: p for p in improvement.patterns(tmp_path)}
-    assert ps["outdated"]["count"] == 2 and ps["outdated"]["topic"] == "Cash Withdrawal SOP §3.3"
-    assert ps["missing_step"]["count"] == 2
-    import time
-    time.sleep(1.1)  # log times are to the second
-    improvement.decide(ps["outdated"]["id"], "approved", log_dir=tmp_path)
-    time.sleep(1.1)
-    event_log.log_report(_report(), log_dir=tmp_path)  # happens again after approval
-    p = next(x for x in improvement.patterns(tmp_path) if x["kind"] == "outdated")
-    assert p["status"] == "approved" and p["before"] == 2 and p["after"] == 1
-    assert "Cash Withdrawal SOP §3.3" in improvement.report_markdown(tmp_path)
-
-
-def test_reviewer_overruling_trustguard_becomes_a_pattern_and_test_case(tmp_path):
-    r = _report(status="INSUFFICIENT_EVIDENCE", cause="")
-    case = review_queue.request(r, "needs_review", tmp_path)
-    review_queue.decide(case, "agent1_correct", log_dir=tmp_path)
-    kinds = {p["kind"] for p in improvement.patterns(tmp_path)}
-    assert "overruled" in kinds
-    tc = improvement.review_test_cases(tmp_path)["cases"][0]
-    assert tc["reviewer_decision"] == "agent1_correct" and tc["reference_answer"] == "The Branch Manager."
 
 
 def test_same_question_later_sees_the_earlier_decision(tmp_path):

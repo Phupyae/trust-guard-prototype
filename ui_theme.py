@@ -330,6 +330,33 @@ mark.n-same {background:var(--blue-soft); color:var(--cobalt-deep); border-radiu
 .tg-chips span {font-family:var(--mono); font-size:0.7rem; text-transform:uppercase; letter-spacing:.06em; color:var(--link-on);
   background:var(--glass); border-radius:999px; padding:0.35rem 0.8rem; box-shadow:var(--raise-sm); backdrop-filter:blur(6px);}
 
+
+/* Hero background: bright glows + glassy orb + sparkles (replaces the line waves) */
+.tg-glow {position:absolute; inset:0; pointer-events:none; overflow:hidden; z-index:0;}
+.tg-glow i {position:absolute; border-radius:50%; filter:blur(36px); animation:tg-drift 16s ease-in-out infinite alternate;}
+.tg-glow .g1 {width:460px; height:300px; left:50%; top:-12%; margin-left:-230px;
+  background:radial-gradient(closest-side, rgba(255,255,255,1), rgba(255,255,255,0));}
+.tg-glow .g2 {width:380px; height:380px; left:-10%; top:10%; animation-duration:19s;
+  background:radial-gradient(closest-side, rgba(79,134,232,.30), rgba(79,134,232,0));}
+.tg-glow .g3 {width:420px; height:420px; right:-12%; bottom:-45%; animation-duration:14s;
+  background:radial-gradient(closest-side, rgba(120,150,240,.38), rgba(120,150,240,0));}
+@keyframes tg-drift {to {transform:translate(28px, -18px) scale(1.08);}}
+.tg-glow .orb {position:absolute; right:-34px; top:50%; width:140px; height:140px; margin-top:-70px; border-radius:50%; opacity:.75;
+  background:radial-gradient(circle at 34% 28%, #FFFFFF 0%, #E4ECFC 32%, #9DB8F2 68%, #3E6FD8 100%);
+  box-shadow:0 0 60px rgba(79,134,232,.35), inset -12px -16px 30px rgba(14,37,88,.18); animation:tg-bob 9s ease-in-out infinite;}
+.tg-glow .ring {position:absolute; right:-90px; top:50%; width:270px; height:84px; margin-top:-42px; border-radius:50%;
+  border:1.5px solid rgba(47,107,224,.32); animation:tg-ring 9s ease-in-out infinite;}
+@keyframes tg-bob {0%,100% {transform:translateY(0);} 50% {transform:translateY(-10px);}}
+@keyframes tg-ring {0%,100% {transform:rotate(-14deg) translateY(0);} 50% {transform:rotate(-14deg) translateY(-10px);}}
+.tg-glow .mote {position:absolute; left:58%; top:30%; width:9px; height:9px; border-radius:50%; background:rgba(47,107,224,.35);
+  animation:tg-mote 12s ease-in-out infinite;}
+@keyframes tg-mote {0%,100% {transform:translate(0,0);} 33% {transform:translate(40px,18px);} 66% {transform:translate(-26px,30px);}}
+.tg-glow .sp {position:absolute; font-size:var(--s); line-height:1; color:#5F88E6; font-weight:400;
+  text-shadow:0 0 6px rgba(111,149,234,.9), 0 0 14px rgba(111,149,234,.5); animation:tg-twinkle var(--d) ease-in-out infinite;}
+@keyframes tg-twinkle {0%,100% {opacity:.15; transform:scale(.55) rotate(0deg);} 50% {opacity:1; transform:scale(1.1) rotate(25deg);}}
+.tg-hero-wrap .tg-top {z-index:1;}
+@media (max-width:720px) {.tg-glow .orb, .tg-glow .ring {display:none;}}
+@media (prefers-reduced-motion:reduce) {.tg-glow i, .tg-glow .orb, .tg-glow .ring, .tg-glow .mote, .tg-glow .sp {animation:none;}}
 /* Cards arrive with a short rise, one after another */
 .tg-rise {animation:tg-rise .55s cubic-bezier(.2,.7,.2,1) both;}
 @keyframes tg-rise {from {opacity:0; transform:translateY(12px);}}
@@ -410,6 +437,13 @@ DARK_CSS = """
   --glass:rgba(17,30,56,.85); --link-on:#BFD2F7; --grad-a:#9DBBF5; --grad-b:#E3ECFF;
   color-scheme:dark;
 }
+.tg-glow .g1 {background:radial-gradient(closest-side, rgba(127,167,246,.28), rgba(127,167,246,0));}
+.tg-glow .g2 {background:radial-gradient(closest-side, rgba(62,112,219,.30), rgba(62,112,219,0));}
+.tg-glow .g3 {background:radial-gradient(closest-side, rgba(150,180,250,.22), rgba(150,180,250,0));}
+.tg-glow .orb {opacity:.6; background:radial-gradient(circle at 34% 28%, #DDE7FF 0%, #8FB0F0 35%, #3E70DB 70%, #142A5C 100%);
+  box-shadow:0 0 70px rgba(127,167,246,.35);}
+.tg-glow .ring {border-color:rgba(160,190,250,.35);} .tg-glow .mote {background:rgba(190,210,250,.5);}
+.tg-glow .sp {color:#E3ECFF; text-shadow:0 0 6px rgba(200,220,255,.95), 0 0 16px rgba(127,167,246,.7);}
 .tg-mesh .w1 {stroke:rgba(127,167,246,.35);} .tg-mesh .w2 {stroke:rgba(190,210,250,.18);} .tg-mesh .w3 {stroke:rgba(127,167,246,.2);}
 /* Streamlit's own widgets are drawn from the light theme in config.toml, so repaint their text and fields */
 .stApp, .stApp p, .stApp li, .stApp label, .stApp h1, .stApp h2, .stApp h3, .stApp h4, .stApp summary,
@@ -450,9 +484,10 @@ hr {border-color:var(--line) !important;}
 """
 
 
-MESH = ('<svg class="tg-mesh" viewBox="0 0 1000 220" preserveAspectRatio="none" aria-hidden="true">'
-        ' <path class="w1" d="M-60 40 C 160 10, 320 120, 520 60 S 860 0, 1080 70"/><path class="w2" d="M-60 58 C 160 32, 320 126, 520 76 S 860 20, 1080 84"/><path class="w3" d="M-60 76 C 160 54, 320 132, 520 92 S 860 40, 1080 98"/><path class="w1" d="M-60 94 C 160 76, 320 138, 520 108 S 860 60, 1080 112"/><path class="w2" d="M-60 112 C 160 98, 320 144, 520 124 S 860 80, 1080 126"/><path class="w3" d="M-60 130 C 160 120, 320 150, 520 140 S 860 100, 1080 140"/><path class="w1" d="M-60 148 C 160 142, 320 156, 520 156 S 860 120, 1080 154"/><path class="w2" d="M-60 166 C 160 164, 320 162, 520 172 S 860 140, 1080 168"/><path class="w3" d="M-60 184 C 160 186, 320 168, 520 188 S 860 160, 1080 182"/><circle class="dot" cx="140" cy="60" r="2.2" style="animation-delay:0s"/><circle class="dot" cx="330" cy="150" r="2.2" style="animation-delay:0.8s"/><circle class="dot" cx="520" cy="70" r="2.2" style="animation-delay:1.6s"/><circle class="dot" cx="720" cy="130" r="2.2" style="animation-delay:0.4s"/><circle class="dot" cx="900" cy="50" r="2.2" style="animation-delay:1.2s"/><circle class="dot" cx="980" cy="170" r="2.2" style="animation-delay:2s"/>'
-        '</svg>')
+# Hero background: soft glows, a glassy orb with a ring, and twinkling sparkles (decorative only)
+MESH = ('<div class="tg-glow" aria-hidden="true"><i class="g1"></i><i class="g2"></i><i class="g3"></i>'
+        '<span class="ring"></span><span class="orb"></span><span class="mote"></span>'
+        '<b class="sp" style="left:8%;top:22%;--s:14px;--d:2.6s;animation-delay:0s">✦</b><b class="sp" style="left:18%;top:70%;--s:10px;--d:3.2s;animation-delay:0.6s">✦</b><b class="sp" style="left:30%;top:14%;--s:9px;--d:2.2s;animation-delay:1.1s">✦</b><b class="sp" style="left:44%;top:82%;--s:12px;--d:3.6s;animation-delay:0.3s">✦</b><b class="sp" style="left:62%;top:10%;--s:10px;--d:2.8s;animation-delay:1.4s">✦</b><b class="sp" style="left:74%;top:74%;--s:15px;--d:3.0s;animation-delay:0.9s">✦</b><b class="sp" style="left:86%;top:28%;--s:9px;--d:2.4s;animation-delay:0.2s">✦</b><b class="sp" style="left:93%;top:64%;--s:11px;--d:3.4s;animation-delay:1.7s">✦</b><b class="sp" style="left:55%;top:48%;--s:7px;--d:2.0s;animation-delay:2.1s">✦</b><b class="sp" style="left:24%;top:46%;--s:7px;--d:2.6s;animation-delay:1.9s">✦</b></div>')
 
 
 def icon(name: str, size: str = "1.1em") -> str:
@@ -493,7 +528,6 @@ def page_nav() -> None:
         st.page_link("app.py", label="Assistant", icon=":material/chat:")
         st.page_link("pages/review_queue.py", label=f"Review queue{f' · {waiting} waiting' if waiting else ''}",
                      icon=":material/fact_check:")
-        st.page_link("pages/improvements.py", label="Improvements", icon=":material/insights:")
         st.page_link("pages/reliability.py", label="How reliable is TrustGuard?", icon=":material/verified_user:")
     except StreamlitAPIException:  # page opened on its own (e.g. in tests), not through app.py
         pass
