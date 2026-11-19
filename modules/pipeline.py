@@ -188,3 +188,39 @@ def run_two_agent(question: str, assistant, retriever, llm, ctx: PolicyContext |
     report.handoff = handoff
     report.timings = {"agent1_s": handoff.latency_s, **report.timings}
     return report
+
+
+def report_from_dict(d: dict) -> Report:
+    """Rebuilds a Report from Report.to_dict(), so a saved chat can be reopened. Unknown keys are
+    ignored, so older saved chats still open after a field is added."""
+    from dataclasses import fields as _fields
+
+    from modules.schemas import (AgentHandoff, CompletenessResult, Correction, CorrectionSentence,
+                                 RequiredElement, VerificationResult)
+
+    def build(cls, data):
+        names = {f.name for f in _fields(cls)}
+        return cls(**{k: v for k, v in (data or {}).items() if k in names})
+
+    comp = d.get("completeness")
+    corr = d.get("correction")
+    report = Report(
+        question=d.get("question", ""), answer=d.get("answer", ""),
+        results=[build(VerificationResult, r) for r in d.get("results") or []],
+        timings=d.get("timings") or {}, coverage_warnings=d.get("coverage_warnings") or [],
+        handoff=build(AgentHandoff, d["agent1_handoff"]) if d.get("agent1_handoff") else None,
+        completeness=(CompletenessResult(checked=comp.get("checked", False), dropped=comp.get("dropped") or [],
+                                         elements=[build(RequiredElement, e) for e in comp.get("elements") or []])
+                      if comp else None),
+        correction=(Correction(status=corr.get("status", ""), message=corr.get("message", ""),
+                               reverification=corr.get("reverification", ""),
+                               reverification_note=corr.get("reverification_note", ""),
+                               sentences=[build(CorrectionSentence, s) for s in corr.get("sentences") or []])
+                    if corr else None),
+        as_of=date.fromisoformat(d["as_of"]) if d.get("as_of") else None,
+        as_of_note=d.get("as_of_note", ""), trustguard_model=d.get("trustguard_model", ""),
+        input_notes=d.get("input_notes") or [],
+    )
+    if d.get("turn_id"):
+        report.turn_id = d["turn_id"]
+    return report

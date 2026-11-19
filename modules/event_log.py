@@ -59,6 +59,10 @@ def log_report(report, mode: str = "", log_dir: Path | None = None) -> None:
         "correction": report.correction.to_dict() if report.correction else None,
         "timings": report.timings, "agent1_model": report.handoff.model if report.handoff else "",
         "trustguard_model": report.trustguard_model, "mode": mode,
+        # per statement: what was found and which SOP section, so recurring problems can be grouped
+        "claims": [{"status": r.status, "source_id": r.source_id, "source_title": r.source_title,
+                    "section": r.section, "section_title": r.section_title, "version": r.version,
+                    "root_cause": r.root_cause, "needs_review": r.needs_review} for r in report.results],
     }
     write("verifications", summary, log_dir)
     reasons = []

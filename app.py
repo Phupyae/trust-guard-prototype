@@ -27,7 +27,7 @@ import time
 import streamlit as st
 
 import config
-from modules import event_log, review_queue
+from modules import chat_history, event_log, review_queue
 from modules.banking_assistant import AssistantError, BankingAssistant, build_agent1_retriever
 from modules.document_loader import load_knowledge_base, load_metadata
 from modules.evidence_retriever import EvidenceRetriever, make_embedder
@@ -147,6 +147,7 @@ elif getattr(llm, "model", "") == getattr(agent1_llm, "model", None):
                "different tiers in .env (see README).")
 
 st.session_state.setdefault("turns", [])
+st.session_state.setdefault("chat_id", chat_history.new_id())
 st.session_state.setdefault("limiter", RateLimiter())
 
 
@@ -171,7 +172,25 @@ with st.sidebar:
                            "Anything wrong, missing or unconfirmed opens automatically.\n\n"
                            "On (audit mode): every step of every check is shown, plus technical details.")
     st.button("New chat", key="new_chat", icon=":material/add_comment:",
-              on_click=lambda: st.session_state.update(turns=[]))
+              on_click=lambda: st.session_state.update(turns=[], chat_id=chat_history.new_id()))
+
+    past = [c for c in chat_history.list_chats() if c["id"] != st.session_state.chat_id][:6]
+    if past:
+        st.markdown("### Past chats")
+
+        def open_chat(chat_id: str) -> None:
+            try:
+                st.session_state.update(turns=chat_history.load(chat_id), chat_id=chat_id)
+            except (OSError, ValueError, KeyError):
+                st.session_state.chat_error = "That chat couldn't be opened."
+
+        for c in past:
+            title = c["title"] if len(c["title"]) <= 34 else c["title"][:33].rstrip() + "…"
+            st.button(title, key=f"chat_{c['id']}", on_click=open_chat, args=(c["id"],),
+                      icon=":material/history:", help=f'{c["title"]} · {c["questions"]} question'
+                      f'{"s" if c["questions"] != 1 else ""}', use_container_width=True, type="tertiary")
+        if st.session_state.pop("chat_error", None):
+            st.caption("That chat couldn't be opened.")
 
     SCOPE_TEXT = {"all": "the same SOP repository as TrustGuard, including replaced versions, without checking "
                          "versions or dates", "approved": "current SOP versions only", "none": "no documents"}
@@ -617,6 +636,15 @@ def render_review(report: Report, key: str) -> None:
         return
     case = review_queue.for_turn(report.turn_id)
     who = review_queue.REVIEWER
+    before = review_queue.earlier_decision(report.question, report.turn_id) if case is None else None
+    if before is not None:
+        use = review_queue.answer_to_use(before)
+        st.markdown(f'<div class="tg-review done"><p class="who">{mark("ok", "✓", "Reviewed before by the " + who)}'
+                    f'<span class="tg-case">{esc(before["case_id"])}</span></p>'
+                    f'<p class="tg-small">Someone asked this same question earlier, and the {esc(who)} decided: '
+                    f'{esc(review_queue.DECISIONS[before["decision"]].lower())}.</p>'
+                    + (f'<div class="tg-lbl" style="margin-top:0.5rem">Their answer</div><p>{esc(use)}</p>' if use else "")
+                    + '</div>', unsafe_allow_html=True)
     if case is None:
         why = ("TrustGuard couldn't fully confirm this." if report.needs_review or level == "warning"
                else "TrustGuard found a problem with this answer.")
@@ -723,6 +751,7 @@ if st.session_state.turns:
 def add_reply(question: str, reply: str, guard: bool, note: str = "") -> None:
     st.session_state.turns.append({"kind": "reply", "question": question, "reply": reply, "guard": guard,
                                    "note": note})
+    chat_history.save(st.session_state.chat_id, st.session_state.turns)
     st.rerun()
 
 
@@ -810,6 +839,7 @@ if question:
         badge.markdown(under_verdict(report), unsafe_allow_html=True)
         event_log.log_report(report, mode="audit" if audit else "daily")
         st.session_state.turns.append({"kind": "report", "question": checked.text, "report": report})
+        chat_history.save(st.session_state.chat_id, st.session_state.turns)
         st.rerun()
     except (InputError, AssistantError) as e:
         st.warning(str(e))

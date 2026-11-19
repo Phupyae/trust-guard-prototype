@@ -101,6 +101,12 @@ h1, h2, h3 {color:var(--ink);}
 [data-testid="stSidebar"] [data-testid="stPageLink"] a[aria-current="page"] span,
 [data-testid="stSidebar"] [data-testid="stPageLink"] a[aria-current="page"] p {color:var(--link-on) !important; font-weight:600;}
 [data-testid="stSidebar"] .stButton button {width:100%;}
+[data-testid="stSidebar"] [class*="st-key-chat_"] button {justify-content:flex-start; border-radius:12px !important;
+  padding:0.4rem 0.75rem; background:transparent !important; box-shadow:none !important;}
+[data-testid="stSidebar"] [class*="st-key-chat_"] button:hover {background:var(--inset) !important;}
+[data-testid="stSidebar"] [class*="st-key-chat_"] button p {white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+  text-align:left; color:var(--ink-2) !important; font-size:0.88rem;}
+[data-testid="stSidebar"] [class*="st-key-chat_"] button > div {justify-content:flex-start; min-width:0;}
 [data-testid="stSidebar"] h3 {font-family:var(--mono) !important; color:var(--ink-3); font-size:0.72rem !important; font-weight:500;
   text-transform:uppercase; letter-spacing:0.08em; margin-top:1rem;}
 [data-testid="stSidebar"] [data-testid="stExpander"] details {background:var(--field); box-shadow:var(--sink); border:none !important;}
@@ -487,6 +493,7 @@ def page_nav() -> None:
         st.page_link("app.py", label="Assistant", icon=":material/chat:")
         st.page_link("pages/review_queue.py", label=f"Review queue{f' · {waiting} waiting' if waiting else ''}",
                      icon=":material/fact_check:")
+        st.page_link("pages/improvements.py", label="Improvements", icon=":material/insights:")
         st.page_link("pages/reliability.py", label="How reliable is TrustGuard?", icon=":material/verified_user:")
     except StreamlitAPIException:  # page opened on its own (e.g. in tests), not through app.py
         pass
