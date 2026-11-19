@@ -196,6 +196,9 @@ with st.sidebar:
                          "versions or dates", "approved": "current SOP versions only", "none": "no documents"}
     st.markdown("### About this demo")
     with st.expander("Setup, SOPs and logs", icon=":material/info:"):
+        st.markdown('<div class="tg-kb"><b>Integration API</b><br><small>Other assistants can call TrustGuard too. Run '
+                    '<code>uvicorn api:app --port 8000</code>, then open localhost:8000. See docs/INTEGRATION.md.'
+                    '</small></div>', unsafe_allow_html=True)
         model_name = ("offline mock (not real verification)" if llm and llm.name == "mock"
                       else getattr(llm, "model", "") if llm else "not available")
         st.markdown(f"**Agent 1** · {assistant.model if assistant else 'not available'}, reads "
