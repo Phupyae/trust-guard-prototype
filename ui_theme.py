@@ -148,8 +148,8 @@ h1, h2, h3 {color:var(--ink);}
   background:var(--surface) !important; color:var(--ink-2) !important; box-shadow:var(--raise-sm); margin:4px !important;}
 [data-testid="stPills"] button:hover, [data-testid="stButtonGroup"] button:hover {color:var(--cobalt) !important;}
 [data-testid="stPills"] label, [data-testid="stButtonGroup"] label {justify-content:center; display:flex;}
-.st-key-ex_pills [data-testid="stWidgetLabel"] {justify-content:center; display:flex;}
-.st-key-ex_pills [data-testid="stWidgetLabel"] p {font-family:var(--mono) !important; text-transform:uppercase; font-size:0.72rem;
+.st-key-more_pills [data-testid="stWidgetLabel"], .st-key-ex_pills [data-testid="stWidgetLabel"] {justify-content:center; display:flex;}
+.st-key-more_pills [data-testid="stWidgetLabel"] p, .st-key-ex_pills [data-testid="stWidgetLabel"] p {font-family:var(--mono) !important; text-transform:uppercase; font-size:0.72rem;
   letter-spacing:0.08em; color:var(--ink-3);}
 
 /* ---------- chat ---------- */

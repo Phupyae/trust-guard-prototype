@@ -709,6 +709,15 @@ for i, turn in enumerate(st.session_state.turns):
                     unsafe_allow_html=True)
         render_findings(rep, f"t{i}")
 
+# After the first answer, keep a few example questions under the conversation (ones not asked yet),
+# so the demo can move on to the next case without typing.
+if st.session_state.turns:
+    asked = {t["question"] for t in st.session_state.turns}
+    left = [q["label"] for q in demo_questions() if q["question"] not in asked]
+    if left:
+        st.pills("Try another", left, key="more_pills", on_change=ask_example, args=("more_pills",),
+                 disabled=assistant is None)
+
 
 
 def add_reply(question: str, reply: str, guard: bool, note: str = "") -> None:
