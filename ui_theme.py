@@ -329,7 +329,10 @@ mark.n-same {background:var(--blue-soft); color:var(--cobalt-deep); border-radiu
 @keyframes tg-shimmer {to {background-position:-220% 0;}}
 .tg-chips {display:flex; gap:0.5rem; justify-content:center; flex-wrap:wrap; margin-top:1.1rem; position:relative;}
 .tg-chips span {font-family:var(--mono); font-size:0.7rem; text-transform:uppercase; letter-spacing:.06em; color:var(--link-on);
-  background:var(--glass); border-radius:999px; padding:0.35rem 0.8rem; box-shadow:var(--raise-sm); backdrop-filter:blur(6px);}
+  background:var(--glass); border-radius:999px; padding:0.35rem 0.8rem; box-shadow:var(--raise-sm); backdrop-filter:blur(6px);
+  display:inline-flex; align-items:center; gap:0.5rem;}
+.tg-chips span b {display:inline-grid; place-items:center; width:1.45rem; height:1.45rem; border-radius:50%;
+  background:var(--link-on); color:var(--paper, #fff); font-size:0.8rem; font-weight:700; letter-spacing:0;}
 
 
 /* Hero background: bright glows + glassy orb + sparkles (replaces the line waves) */
@@ -358,7 +361,7 @@ mark.n-same {background:var(--blue-soft); color:var(--cobalt-deep); border-radiu
 .tg-hero-wrap .tg-top {z-index:1;}
 @media (max-width:720px) {.tg-glow .orb, .tg-glow .ring {display:none;}}
 @media (prefers-reduced-motion:reduce) {.tg-glow i, .tg-glow .orb, .tg-glow .ring, .tg-glow .mote, .tg-glow .sp {animation:none;}}
-.tg-demo-note {font-size:0.76rem !important; color:var(--ink-3) !important; margin:0.7rem 0 0 !important;}
+.tg-demo-note {font-size:0.76rem !important; color:var(--ink-3) !important; margin:0.9rem auto 0 !important; text-align:center; max-width:none !important;}
 /* Final decision after a person's review: leads the result */
 .tg-final {display:flex; gap:1rem; align-items:flex-start; background:var(--surface); border-radius:26px;
   padding:1.1rem 1.3rem; box-shadow:var(--raise-sm); border-left:6px solid var(--ok); margin:0 0 0.6rem;}

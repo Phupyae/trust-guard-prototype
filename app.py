@@ -94,10 +94,9 @@ def plural(n: int, one: str, many: str) -> str:
 st.markdown('<div class="tg-hero-wrap tg-rise">' + MESH +
             '<div class="tg-top"><div class="tg-eyebrow">Northbridge Bank · Staff policy assistant</div>'
             '<h1>Ask about a <span class="tg-grad">policy</span>.</h1>'
-            '<p>Agent 1 answers your question. TrustGuard checks that answer against the SOP in effect, '
-            'so you know whether you can rely on it.</p>'
-            '<div class="tg-chips"><span>① Agent 1 answers</span><span>② TrustGuard checks</span>'
-            '<span>③ A person decides when unsure</span></div>'
+            '<p>Know whether you can rely on an AI answer before you act on it.</p>'
+            '<div class="tg-chips"><span><b>1</b>Agent 1 answers</span><span><b>2</b>TrustGuard checks</span>'
+            '<span><b>3</b>A person decides when unsure</span></div>'
             '<p class="tg-demo-note">Demo policies of Northbridge Bank, a fictional bank. Not OCBC policy.</p>'
             '</div></div>', unsafe_allow_html=True)
 
