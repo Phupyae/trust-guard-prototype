@@ -160,7 +160,7 @@ Classify the message:
 - in_scope: a question about the bank's staff policies, HR rules or operating procedures, EVEN IF it is about a topic not listed above (e.g. leave, bonuses). Questions about a date or an older version of a policy are in scope.
 - small_talk: greetings, thanks, or chit-chat with no policy question.
 - off_topic: not about the bank's policies or procedures at all (weather, coding, general knowledge, personal advice, market or investment advice).
-- unclear: about policy, but too vague to answer without guessing (e.g. "how much can I claim?" or "is it allowed?"). Write one short clarifying question.
+- unclear: about policy, but too vague to answer without guessing (e.g. "how much can I claim?" or "is it allowed?"). Write one short clarifying question. A question that names the topic and what it wants (e.g. "how much can I claim per day for an overseas business trip?") is in_scope: do not ask for details such as the country, branch or amount unless the question cannot be answered without them.
 - action_request: asks the assistant to DO something (approve, process, waive, open an account, send money) rather than explain a rule.
 
 Also return:

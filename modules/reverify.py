@@ -144,9 +144,11 @@ def check_rules(sentence, rules: dict, question: str = "") -> dict:
     # Exemptions: items the section itself says are NOT subject to its requirements
     # ("The daily allowance does not require receipts."). A sentence about an exempt item
     # may say the step isn't needed - unless it generalises ("any/all/every expense").
-    exempt = policy_rules.names_exempt_item(sentence.text, entry.get("exemptions"))
+    parts = policy_rules.clauses(sentence.text)
     for topic in entry.get("required", []):
-        if topic in policy_rules._NO_REQUIREMENT and _says_not_required(sentence.text, topic) and not exempt:
+        if topic in policy_rules._NO_REQUIREMENT and any(
+                _says_not_required(part, topic) and not policy_rules.names_exempt_item(part, entry.get("exemptions"))
+                for part in parts):
             problems.append(f"says {topic} {_be(topic)} not needed; the rules table says {_it(topic)} required")
     for topic in entry.get("not_required", []):
         if _says_required(sentence.text, topic):
@@ -218,27 +220,12 @@ def check_entailment(sentence, chunk, nli) -> dict:
 # --- Band rule: a sentence that applies the policy's amount band to the question's amount ---
 # NLI can't compare numbers, so "An $80,000 withdrawal requires ..." vs "Withdrawals above
 # $50,000 require ..." comes back "neutral". Code can: is $80,000 inside "above $50,000"?
-_MONEY = r"\$\s?(\d[\d,]*(?:\.\d+)?)"
-_BAND_LOW = rf"\b(?:above|over|more than|(?<!not )exceeding)\s+{_MONEY}"
-_BAND_HIGH = [rf"\b(?:up to|not exceeding|no more than|at most)\s+{_MONEY}", rf"{_MONEY}\s+or (?:less|below)"]
+# policy_band() lives in policy_rules, because the claim verifier (T4) uses the same rule.
+policy_band = policy_rules.policy_band
 # "X cannot waive/approve a $300 fee": the sentence says the amount is OUTSIDE X's band.
 _NEG_APPROVE = (r"\b(?:cannot|can ?not|can't|may not|must not|(?:is|are) not (?:allowed|permitted|authori[sz]ed) to)"
                 r"\s+(?:\w+\s+){0,2}?(?:waive|approv|authori[sz]|process|sign off)")
 _NEG_ANY = r"\b(?:not|no|never|cannot|can't|unable|neither|nor)\b"
-
-
-def _num(s: str) -> float:
-    return float(s.replace(",", ""))
-
-
-def policy_band(text: str) -> tuple[float | None, float | None] | None:
-    """(lower bound, exclusive; upper bound, inclusive) of the money band a section states,
-    or None if it states none or more than one (then the rule doesn't apply)."""
-    lows = {_num(m) for m in re.findall(_BAND_LOW, text, flags=re.IGNORECASE)}
-    highs = {_num(m) for p in _BAND_HIGH for m in re.findall(p, text, flags=re.IGNORECASE)}
-    if len(lows) > 1 or len(highs) > 1 or not (lows or highs):
-        return None
-    return (next(iter(lows), None), next(iter(highs), None))
 
 
 def _band_text(lo, hi) -> str:

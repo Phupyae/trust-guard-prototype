@@ -18,10 +18,12 @@ ESSENTIAL ones (without which the employee would act wrongly) make the answer
 (Added after the first real run flagged "partial days are paid at 50%" as missing from a
 correct answer to "what are the reimbursement rules?": a false alarm.)
 """
+import re
+
 from modules import policy_rules
 from modules.evidence_retriever import expand_siblings
 from modules.policy_validation import PolicyContext
-from modules.schemas import CompletenessResult, RequiredElement
+from modules.schemas import CONTRADICTED, CompletenessResult, RequiredElement
 
 MAX_ELEMENTS = 4
 
@@ -102,4 +104,103 @@ def check_completeness(question: str, answer: str, evidence, llm) -> Completenes
             source_title=c.document_title, section=c.section, section_title=c.section_title,
             version=c.version, quote=quote, note=(item.get("note") or "").strip(),
             essential=item.get("essential", True) is not False))
+    return result
+
+
+# "The documents do not specify ...", "the policy doesn't cover ...": the answer DENIES a rule exists.
+_DENIAL = re.compile(r"\b(?:do(?:es)?\s*n[o']t|not)\s+(?:specify|say|state|mention|cover|include|address|provide)|"
+                     r"\bno\s+(?:information|guidance|rule|requirement)s?\b|\bnot\s+(?:specified|covered|stated)\b", re.I)
+
+
+def is_denial(claim: str) -> bool:
+    return bool(_DENIAL.search(claim or ""))
+
+
+def _chapter(section: str) -> str:
+    return (section or "").split(".")[0]
+
+
+# Other ways staff and assistants name the same role. Used only to decide whether an answer
+# NAMES a role, so a wider list can only prevent false "missing approver" findings, never add them.
+ROLE_ALIASES = {
+    "branch operations head": ["branch operations head", "operations head", "ops head", "head of branch operations",
+                               "head of operations"],
+    "branch manager": ["branch manager"],
+    "department head": ["department head", "head of department", "head of the department", "departmental head"],
+    "direct manager": ["direct manager", "line manager", "reporting manager", "immediate manager", "your manager",
+                       "their manager", "his manager", "her manager", "the employee's manager"],
+    "regional head": ["regional head"],
+    "customer service officer": ["customer service officer"],
+    "group compliance": ["group compliance", "compliance team", "compliance"],
+}
+
+
+def _names_role(role: str, answer: str) -> bool:
+    ans = (answer or "").lower()
+    return any(re.search(rf"\b{re.escape(alias)}\b", ans) for alias in ROLE_ALIASES.get(role.lower(), [role.lower()]))
+
+
+def _missing_roles(e: RequiredElement, answer: str) -> list[str]:
+    """Approvers that must ALL sign off (the section's rules table says `all_roles_required`), that
+    this element's SOP sentence names, and that the answer never names under any of their usual
+    names. Sections where an approver depends on the amount ("above $2,000 additionally ...") or
+    where a role only receives a report are not marked all-required, so they are never flagged:
+    that keeps the rule from adding false alarms."""
+    from modules.reverify import load_rules
+    rule = load_rules().get(e.source_id, {}).get(e.section) or {}
+    if not rule.get("all_roles_required"):
+        return []
+    sop_text = (e.quote or e.element).lower()
+    return [r for r in rule.get("roles", []) if r.lower() in sop_text and not _names_role(r, answer)]
+
+
+def reconcile(result: CompletenessResult | None, results: list, question_evidence=None,
+              answer: str = "") -> CompletenessResult | None:
+    """Rule-based clean-up after the LLM's completeness pass, so the same answer gets the same
+    missing-step list every time (added after live runs flagged a teller paperwork step as
+    "missing" from an answer to "who approves an $80,000 withdrawal?").
+
+    1. No double counting: if the answer DENIED a rule ("the documents do not specify ...") and that
+       statement is already marked as not matching, the rule it denied is a wrong answer, not a
+       separate missing step. It is shown once, under the statement.
+    2. Stay on topic: SOPs are organised in chapters (cash withdrawals: 3 Approval limits,
+       4 Identity and purpose checks, ...). A step only counts as essential if it is in the same
+       chapter of the same SOP as a section the answer's statements were checked against. Steps
+       from other chapters are kept as extra detail (audit mode) without raising a warning.
+       If no statement could be tied to a section, the section the QUESTION matches best (top
+       search result) is used instead; with neither, the LLM's judgement stands.
+    3. A required approver the answer never names is MISSING, even when the LLM called the whole
+       rule a "wrong value" ("above $30,000: Branch Manager" vs "above $50,000: Branch Manager and
+       Branch Operations Head" leaves out the Operations Head). Only for sections whose rules table
+       marks every listed approver as required together, and only when the answer doesn't name the
+       role under any usual name (ROLE_ALIASES). An answer that names the approver with a wrong
+       amount stays a wrong value. Added after the 20 Nov evaluation, where this omission was
+       reported only as a wrong value.
+    """
+    if not result or not result.elements:
+        return result
+    cited = {(r.source_id, _chapter(r.section)) for r in results if r.source_id and r.section}
+    if not cited and question_evidence:
+        top = question_evidence[0].chunk
+        cited = {(top.document_id, _chapter(top.section))}
+    # A rule the answer DENIED is already shown under the denying statement. Matched on the SOP
+    # section (not the exact quote: the statement may quote the whole section and the missing step
+    # only one sentence of it).
+    denied_sections = {(r.source_id, r.section) for r in results
+                       if r.status == CONTRADICTED and is_denial(r.claim) and r.source_id}
+
+    def was_denied(e) -> bool:
+        return (e.source_id, e.section) in denied_sections
+
+    for e in result.elements:
+        if e.coverage == "different" and not was_denied(e):
+            gone = _missing_roles(e, answer)
+            if gone:
+                e.coverage, e.covered = "absent", False
+                e.note = (e.note + " " if e.note else "") + f"The answer doesn't name: {', '.join(gone)}."
+        if e.coverage == "absent" and was_denied(e):
+            e.coverage, e.covered = "different", False
+            e.note = (e.note + " " if e.note else "") + "(The answer said the SOP doesn't cover this; shown under Statements.)"
+        if cited and e.essential and not e.covered and (e.source_id, _chapter(e.section)) not in cited:
+            e.essential = False
     return result

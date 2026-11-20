@@ -65,6 +65,64 @@ def case_quantities(question: str, answer: str) -> dict[str, set[float]]:
     return {u: vs - a.get(u, set()) for u, vs in q.items() if vs - a.get(u, set())}
 
 
+# --- Amount bands ("Withdrawals above $50,000 require ...") ---------------------
+# Used by the claim verifier (T4) and by re-verification method C's band rule (T7).
+_MONEY = r"\$\s?(\d[\d,]*(?:\.\d+)?)"
+_BAND_LOW = rf"\b(?:above|over|more than|(?<!not )exceeding)\s+{_MONEY}"
+_BAND_HIGH = [rf"\b(?:up to|not exceeding|no more than|at most)\s+{_MONEY}", rf"{_MONEY}\s+or (?:less|below)"]
+
+
+def _num(s: str) -> float:
+    return float(s.replace(",", ""))
+
+
+def policy_band(text: str) -> tuple[float | None, float | None] | None:
+    """(lower bound, exclusive; upper bound, inclusive) of the money band a section states,
+    or None if it states none or more than one (then the rule doesn't apply)."""
+    lows = {_num(m) for m in re.findall(_BAND_LOW, text, flags=re.IGNORECASE)}
+    highs = {_num(m) for p in _BAND_HIGH for m in re.findall(p, text, flags=re.IGNORECASE)}
+    if len(lows) > 1 or len(highs) > 1 or not (lows or highs):
+        return None
+    return (next(iter(lows), None), next(iter(highs), None))
+
+
+def in_band(amount: float, band: tuple[float | None, float | None]) -> bool:
+    lo, hi = band
+    return (lo is None or amount > lo) and (hi is None or amount <= hi)
+
+
+def case_amounts_in_band(question: str, section: str) -> dict[str, set[float]]:
+    """Money amounts from the question that fall INSIDE the cited section's band.
+    "A cash withdrawal of $80,000 requires both approvers" applies "above $50,000" to the
+    customer's $80,000: the $80,000 describes the case, it is not a wrong threshold, even
+    when the answer repeats it. An amount OUTSIDE the band is still compared, so
+    "a CSO can waive $300" against "up to $50" stays a mismatch."""
+    band = policy_band(section)
+    if band is None:
+        return {}
+    inside = {v for v in extract_quantities(question).get("money", set()) if in_band(v, band)}
+    return {"money": inside} if inside else {}
+
+
+_NEGATED = re.compile(r"\b(?:cannot|can\s*not|can't|may\s+not|must\s+not|is\s+not\s+(?:allowed|permitted|authori[sz]ed)|"
+                      r"not\s+(?:allowed|permitted|authori[sz]ed)|isn't\s+(?:allowed|permitted))\b", re.I)
+
+
+def negated_amounts_outside_band(question: str, claim: str, section: str) -> dict[str, set[float]]:
+    """"A CSO cannot waive a $300 fee" against "may waive fees of up to $50": the $300 is the
+    customer's case and lies OUTSIDE the band, and the claim says the action is NOT allowed, so the
+    claim agrees with the policy. Without this the numeric check saw $300 vs $50 and called a
+    correct answer unconfirmed (live run, 20 Nov). Only for negated claims and only for amounts
+    outside the band: "a CSO can waive $300" is still compared, and still a mismatch."""
+    if not _NEGATED.search(claim or ""):
+        return {}
+    band = policy_band(section)
+    if band is None:
+        return {}
+    outside = {v for v in extract_quantities(question).get("money", set()) if not in_band(v, band)}
+    return {"money": outside} if outside else {}
+
+
 def numeric_check(claim: str, evidence: str, ignore: dict[str, set[float]] | None = None) -> tuple[str, str]:
     """Returns (result, message) where result is 'match', 'mismatch' or 'n/a'.
     `ignore`: quantities to skip, e.g. case_quantities() from the question."""
@@ -179,19 +237,32 @@ def names_exempt_item(text: str, exemptions: list[str] | None) -> bool:
             and not re.search(r"\b(?:any|all|every)\b", t))
 
 
+_CLAUSE_SPLIT = re.compile(r"\s*(?:;|,?\s+but\s+|,?\s+however,?\s+|,?\s+whereas\s+|,?\s+while\s+|,?\s+except\s+(?:that\s+)?)\s*", re.I)
+
+
+def clauses(text: str) -> list[str]:
+    """"Receipts are needed for every expense above $25, but the daily allowance does not need
+    them" -> two clauses. A requirement and its exemption often share one sentence; each part is
+    checked on its own so the "every" in one part doesn't cancel the exemption named in the other
+    (a correct correction failed re-check B this way in the 20 Nov rerun)."""
+    return [c for c in _CLAUSE_SPLIT.split(text or "") if c.strip()] or [text or ""]
+
+
 def requirement_check(claim: str, evidence: str, exemptions: list[str] | None = None) -> tuple[str, str]:
     """Flags the classic dangerous error: the answer says something is NOT required
     (approval, receipts) when the policy says it IS.
     `exemptions`: the cited section's rules-table exemptions. Only when the CLAIM names one
     ("The daily allowance does not require receipts.") does the check stand down, because
     the section itself says that item is exempt. Any other claim is still checked."""
-    c, e = claim.lower(), evidence.lower()
-    if names_exempt_item(claim, exemptions):
-        return "n/a", ""
-    for topic, patterns in _NO_REQUIREMENT.items():
-        says_not_required = any(re.search(p, c) for p in patterns)
-        if topic == "approval" and re.search(_DOUBLE_NEGATIVE, c):
-            says_not_required = False  # "no claim is approved automatically" = approval IS required
-        if says_not_required and re.search(_REQUIRES[topic], e):
-            return "mismatch", f"Requirement check: claim says {topic} is not required; evidence says it is."
+    e = evidence.lower()
+    for part in clauses(claim):
+        if names_exempt_item(part, exemptions):
+            continue  # this part is about an item the section exempts
+        c = part.lower()
+        for topic, patterns in _NO_REQUIREMENT.items():
+            says_not_required = any(re.search(p, c) for p in patterns)
+            if topic == "approval" and re.search(_DOUBLE_NEGATIVE, c):
+                says_not_required = False  # "no claim is approved automatically" = approval IS required
+            if says_not_required and re.search(_REQUIRES[topic], e):
+                return "mismatch", f"Requirement check: claim says {topic} is not required; evidence says it is."
     return "n/a", ""

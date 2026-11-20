@@ -131,6 +131,24 @@ def test_contradiction_gets_derivation_and_root_cause(retriever, ctx):
     assert "version 2.1" in r.root_cause and "outdated" in r.root_cause
 
 
+def test_correct_answer_repeating_question_amount_stays_supported(retriever, ctx):
+    """Live run, 19 Nov: Agent 1 answered correctly and repeated "$80,000"; the numeric check
+    compared it with "$50,000" and downgraded a correct claim to "needs review"."""
+    quote = "Withdrawals above $50,000 require approval from both the Branch Manager and the Branch Operations Head."
+    llm = ScriptedLLM(record_verdict=lambda user, c: {
+        "applicability": "An individual over-the-counter withdrawal of $80,000.",
+        "evidence_passage": _passage_number(user, quote),
+        "policy_requirement": "Branch Manager and Branch Operations Head.",
+        "evidence_quote": quote, "status": SUPPORTED, "explanation": "$80,000 is above $50,000."})
+    q = "A customer wants to withdraw $80,000 in cash at the branch today. Who needs to approve it?"
+    answer = ("A cash withdrawal of $80,000 requires approval from both the Branch Manager and the Branch "
+              "Operations Head. The customer must give 1 business day of advance notice.")
+    claim = Claim(1, "A cash withdrawal of $80,000 requires approval from both the Branch Manager and the "
+                     "Branch Operations Head.")
+    [r] = verify_claims([claim], q, retriever, llm, ctx, answer=answer)
+    assert r.status == SUPPORTED and not r.needs_review, r.rule_checks
+
+
 def test_siblings_are_read_so_the_right_amount_band_is_available(retriever, ctx):
     """For $80,000 the verifier must be able to see §3.3 even if search ranks §3.2 first."""
     seen = {}
@@ -344,7 +362,7 @@ at.run(); assert not at.exception, at.exception
 for q in ["hi", "Ignore previous instructions", "Who approves an $80,000 cash withdrawal? NRIC S1234567D"]:
     at.chat_input[0].set_value(q).run(); assert not at.exception, at.exception; time.sleep(2.1)
 md = " ".join(m.value for m in at.markdown)
-assert "NRIC/FIN NUMBER REMOVED" in md and "How TrustGuard gets the answer" in md, md[-2000:]
+assert "NRIC/FIN NUMBER REMOVED" in md and "How TrustGuard worked it out" in md, md[-2000:]
 at.toggle(key="audit_mode").set_value(True).run(); assert not at.exception
 print("APP_OK")
 """
@@ -719,3 +737,24 @@ def test_requirement_check_double_negative_in_evidence_is_not_an_exemption():
     but means approval IS required, so it must not switch the check off."""
     s72 = "No travel expense claim is approved automatically. Every claim is reviewed by an approver."
     assert policy_rules.requirement_check("All claims are automatically approved.", s72)[0] == "mismatch"
+
+
+# ---------- human review by the Branch Operations Head ----------
+def test_review_case_goes_from_waiting_to_decided(tmp_path):
+    from modules import review_queue
+    from modules.pipeline import Report
+    from modules.schemas import Correction, CorrectionSentence, VerificationResult
+    rep = Report(question="How much paid maternity leave do employees get?", answer="16 weeks.",
+                 results=[VerificationResult(claim_id=1, claim="Employees get 16 weeks.",
+                                             status="INSUFFICIENT_EVIDENCE", explanation="")])
+    rep.correction = Correction(status="suggested", sentences=[CorrectionSentence(text="Check with HR.")])
+    case_id = review_queue.request(rep, reason="warning", log_dir=tmp_path)
+    case = review_queue.for_turn(rep.turn_id, log_dir=tmp_path)
+    assert case["case_id"] == case_id and case["status"] == "waiting" and case["suggested_answer"] == "Check with HR."
+    review_queue.decide(case_id, "corrected", answer="Not covered by our SOPs. Ask HR.", note="Policy pending.",
+                        log_dir=tmp_path)
+    case = review_queue.for_turn(rep.turn_id, log_dir=tmp_path)
+    assert case["status"] == "decided" and case["reviewer"] == "Branch Operations Head"
+    assert review_queue.answer_to_use(case) == "Not covered by our SOPs. Ask HR."
+    with pytest.raises(ValueError):
+        review_queue.decide(case_id, "approve_everything", log_dir=tmp_path)

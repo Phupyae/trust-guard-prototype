@@ -13,6 +13,7 @@ TrustGuard's flow (Priority 1 stages kept, Priority 2 stages added):
 The UI, the tests and the evaluation script all call run_pipeline / run_two_agent, so
 what the judges see is exactly what the metrics measure.
 """
+import re
 import time
 import uuid
 from dataclasses import dataclass, field
@@ -21,13 +22,13 @@ from functools import lru_cache
 
 from modules.claim_extractor import extract_claims
 from modules.claim_verifier import verify_claims
-from modules.completeness import check_completeness, question_evidence
+from modules.completeness import check_completeness, is_denial, question_evidence, reconcile
 from modules.correction import correction_evidence, needs_correction, suggest_correction
 from modules.document_loader import load_metadata
 from modules.policy_rules import coverage_check
 from modules.policy_validation import PolicyContext, PolicyRegistry
 from modules.reverify import reverify
-from modules.schemas import CONTRADICTED, INSUFFICIENT_EVIDENCE, SUPPORTED, CompletenessResult, Correction
+from modules.schemas import CONTRADICTED, Claim, INSUFFICIENT_EVIDENCE, SUPPORTED, CompletenessResult, Correction
 
 MAX_ANSWER_CHARS = 4000
 
@@ -128,6 +129,19 @@ def _noop(stage: str, data=None) -> None:
     pass
 
 
+def with_denial_claims(claims: list, answer: str) -> list:
+    """An answer like "The documents do not specify the approval requirements for ..." is a claim
+    about the policy (that no rule exists), but the extraction LLM sometimes returns no statements
+    for it, which made the same answer show "0 statements" on one run and "doesn't match" on the
+    next. Any such sentence that no extracted statement covers is added as a statement, so it is
+    always checked against the SOP."""
+    if any(is_denial(c.claim) for c in claims):
+        return claims
+    sentences = [s.strip() for s in re.split(r"(?<=[.!?])\s+", answer or "") if s.strip()]
+    extra = [s for s in sentences if is_denial(s)]
+    return claims + [Claim(claim_id=len(claims) + i + 1, claim=s) for i, s in enumerate(extra)]
+
+
 def run_pipeline(question: str, answer: str, retriever, llm, ctx: PolicyContext | None = None,
                  nli=None, on_stage=_noop, completeness: bool = True, correct: bool = True) -> Report:
     """on_stage(stage_name, data) is called as each stage finishes, so the UI can show
@@ -139,7 +153,7 @@ def run_pipeline(question: str, answer: str, retriever, llm, ctx: PolicyContext 
     on_stage("policy", ctx)
     t = {"start": time.perf_counter()}
 
-    claims = extract_claims(question, answer, llm)
+    claims = with_denial_claims(extract_claims(question, answer, llm), answer)
     report.coverage_warnings = coverage_check([c.claim for c in claims], answer)
     t["extracted"] = time.perf_counter()
     on_stage("claims", claims)
@@ -150,7 +164,8 @@ def run_pipeline(question: str, answer: str, retriever, llm, ctx: PolicyContext 
 
     q_evidence = question_evidence(question, retriever, ctx)
     if completeness:
-        report.completeness = check_completeness(question, answer, q_evidence, llm)
+        report.completeness = reconcile(check_completeness(question, answer, q_evidence, llm), report.results, q_evidence,
+                                        answer=answer)
         on_stage("completeness", report.completeness)
     t["completeness"] = time.perf_counter()
 
@@ -187,4 +202,40 @@ def run_two_agent(question: str, assistant, retriever, llm, ctx: PolicyContext |
     report = run_pipeline(handoff.question, handoff.answer, retriever, llm, ctx=ctx, nli=nli, **kwargs)
     report.handoff = handoff
     report.timings = {"agent1_s": handoff.latency_s, **report.timings}
+    return report
+
+
+def report_from_dict(d: dict) -> Report:
+    """Rebuilds a Report from Report.to_dict(), so a saved chat can be reopened. Unknown keys are
+    ignored, so older saved chats still open after a field is added."""
+    from dataclasses import fields as _fields
+
+    from modules.schemas import (AgentHandoff, CompletenessResult, Correction, CorrectionSentence,
+                                 RequiredElement, VerificationResult)
+
+    def build(cls, data):
+        names = {f.name for f in _fields(cls)}
+        return cls(**{k: v for k, v in (data or {}).items() if k in names})
+
+    comp = d.get("completeness")
+    corr = d.get("correction")
+    report = Report(
+        question=d.get("question", ""), answer=d.get("answer", ""),
+        results=[build(VerificationResult, r) for r in d.get("results") or []],
+        timings=d.get("timings") or {}, coverage_warnings=d.get("coverage_warnings") or [],
+        handoff=build(AgentHandoff, d["agent1_handoff"]) if d.get("agent1_handoff") else None,
+        completeness=(CompletenessResult(checked=comp.get("checked", False), dropped=comp.get("dropped") or [],
+                                         elements=[build(RequiredElement, e) for e in comp.get("elements") or []])
+                      if comp else None),
+        correction=(Correction(status=corr.get("status", ""), message=corr.get("message", ""),
+                               reverification=corr.get("reverification", ""),
+                               reverification_note=corr.get("reverification_note", ""),
+                               sentences=[build(CorrectionSentence, s) for s in corr.get("sentences") or []])
+                    if corr else None),
+        as_of=date.fromisoformat(d["as_of"]) if d.get("as_of") else None,
+        as_of_note=d.get("as_of_note", ""), trustguard_model=d.get("trustguard_model", ""),
+        input_notes=d.get("input_notes") or [],
+    )
+    if d.get("turn_id"):
+        report.turn_id = d["turn_id"]
     return report

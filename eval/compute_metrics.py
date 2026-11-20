@@ -105,6 +105,7 @@ def answer_metrics(rows: list[dict]) -> dict:
     gold_complete = [r for r in ms if yn(r["gold_missing_step"]) == "N"]
     out["incomplete_answer_recall"] = ratio(sum(bool(r["tg_missing"]) for r in gold_missing), len(gold_missing))
     out["incomplete_false_flag_rate"] = ratio(sum(bool(r["tg_missing"]) for r in gold_complete), len(gold_complete))
+    out["missed_missing"] = [r for r in gold_missing if not r["tg_missing"]]
     sug = [r for r in rows if r["correction_status"] == "suggested"]
     out["corrections_suggested"] = len(sug)
     out["correction_support_rate"] = ratio(sum(r["reverification"] == "confirmed" for r in sug), len(sug))
@@ -203,9 +204,13 @@ def failures_md(name: str, c: dict, a: dict, errors: list) -> str:
         L.append(f"- **{r['run_id']}** gold {r['gold_status']}, TrustGuard {r['tg_status']}: “{r['claim']}” "
                  f"(cited {r['tg_source']} §{r['tg_section']}) {r.get('notes', '')}")
     if not c["failures"]:
-        L.append("- none (or no labels yet)")
+        L.append("- none" if c.get("claims_labelled") else "- none yet (no claims labelled)")
     L += ["", "## Wrong answers TrustGuard marked verified (missed)", ""]
     L += [f"- **{r['run_id']}**: {r['agent1_answer']} {r.get('notes', '')}" for r in a["missed_wrong"]] or ["- none"]
+    L += ["", "## Missing steps TrustGuard didn't report", ""]
+    L += [f"- **{r['run_id']}**: {r['agent1_answer']} (TrustGuard: {r['tg_overall']}; "
+          f"{'the answer was still flagged' if r['tg_overall'] in ('error', 'warning') else 'the answer was NOT flagged'}) "
+          f"{r.get('notes', '')}" for r in a.get("missed_missing", [])] or ["- none"]
     L += ["", "## Correct answers TrustGuard flagged (false alarms)", ""]
     L += [f"- **{r['run_id']}** ({r['tg_overall']}): {r['tg_message']} | answer: {r['agent1_answer']}"
           for r in a["false_alarms"]] or ["- none"]
@@ -225,7 +230,7 @@ def compute_and_write(folders: list[Path]) -> list[dict]:
         errors = json.loads((folder / "errors.json").read_text(encoding="utf-8")) if (folder / "errors.json").exists() else []
         errors = unresolved_errors(errors, answer_rows)
         a = answer_metrics(answer_rows)
-        strip = lambda d: {k: v for k, v in d.items() if k not in ("failures", "missed_wrong", "false_alarms", "not_confirmed")}  # noqa: E731
+        strip = lambda d: {k: v for k, v in d.items() if k not in ("failures", "missed_wrong", "false_alarms", "not_confirmed", "missed_missing")}  # noqa: E731
         (folder / "metrics.json").write_text(json.dumps({"run_info": info, "claims": strip(c), "answers": strip(a),
                                                          "errors": len(errors)}, indent=2), encoding="utf-8")
         (folder / "metrics.md").write_text(to_markdown(folder.name, info, c, a), encoding="utf-8")

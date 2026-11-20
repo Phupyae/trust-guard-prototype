@@ -1,7 +1,7 @@
 [theme]
 base = "light"
-primaryColor = "#2457C5"
-backgroundColor = "#F3F5F9"
+primaryColor = "#1C3D82"
+backgroundColor = "#F2F5FA"
 secondaryBackgroundColor = "#FFFFFF"
 textColor = "#0E1A33"
 
@@ -11,3 +11,5 @@ headless = true
 [client]
 # Pages are linked from the sidebar by ui_theme.page_nav() instead, with readable names.
 showSidebarNavigation = false
+# Hide Streamlit's own "Deploy" button and developer menu items for the demo.
+toolbarMode = "minimal"
