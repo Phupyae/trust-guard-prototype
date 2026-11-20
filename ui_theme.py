@@ -206,6 +206,7 @@ h1, h2, h3 {color:var(--ink);}
 .tg-ring .num {position:relative; text-align:center; line-height:1;}
 .tg-ring .num b {display:block; font-size:1.2rem; font-weight:600; color:var(--ink);}
 .tg-ring .num small {font-family:var(--mono); font-size:0.6rem; color:var(--ink-3); text-transform:uppercase; letter-spacing:.06em;}
+.tg-ring .num small.miss {display:block; letter-spacing:0; font-size:0.55rem; color:var(--unk); white-space:nowrap;}
 .tg-result {display:flex; gap:0.7rem; align-items:flex-start;}
 .tg-result .mark {flex:none; width:1.7rem; height:1.7rem; border-radius:50%; display:flex; align-items:center; justify-content:center;
   font-weight:700; margin-top:0.1rem;}

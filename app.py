@@ -304,10 +304,11 @@ def ring_html(report: Report) -> str:
     missing = len(report.missing)
     if missing and segs:  # all stated facts may match, but the answer is incomplete: never a green "all good" ring
         segs = segs.replace('stroke="var(--ok)"', 'stroke="var(--unk)"')
-    sub = f"stated · {missing} missing" if missing else "match"
+    sub = "stated" if missing else "match"  # the headline says how many steps are missing
     return (f'<div class="tg-ring" role="img" aria-label="{c[SUPPORTED]} of {len(report.results)} statements match the SOP'
             f'{f", {missing} required step(s) missing" if missing else ""}">'
-            f'<svg viewBox="0 0 70 70">{track}{segs}</svg><div class="num"><b>{label}</b><small>{sub}</small></div></div>')
+            f'<svg viewBox="0 0 70 70">{track}{segs}</svg><div class="num"><b>{label}</b>'
+            f'<small class="{"miss" if missing else ""}">{sub}</small></div></div>')
 
 
 _QTY = re.compile(r"\$\s?\d[\d,]*(?:\.\d+)?|\b\d+\s+(?:business |working |calendar )?(?:days?|months?|weeks?|years?)\b|\b\d+(?:\.\d+)?\s?%")

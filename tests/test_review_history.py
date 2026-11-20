@@ -81,6 +81,11 @@ def test_denied_rule_is_not_counted_twice():
     reconcile(comp, [_res(_C, "3.2", claim="The documents do not specify the approval requirements for "
                                             "withdrawals between $20,001 and $50,000.", evidence=APPROVAL_32)])
     assert comp.missing == [] and comp.elements[0].coverage == "different"
+    # live run, 20 Nov: the statement quoted the whole section, the missing step one sentence of it
+    comp = CompletenessResult(checked=True, elements=[_el("3.2", APPROVAL_32)])
+    reconcile(comp, [_res(_C, "3.2", claim="The provided documents do not specify the approval requirements.",
+                          evidence=APPROVAL_32 + " The customer may collect the cash on the same day.")])
+    assert comp.missing == []
 
 
 def test_no_cited_section_keeps_the_llm_judgement():

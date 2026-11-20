@@ -183,15 +183,22 @@ def reconcile(result: CompletenessResult | None, results: list, question_evidenc
     if not cited and question_evidence:
         top = question_evidence[0].chunk
         cited = {(top.document_id, _chapter(top.section))}
-    denied = {(r.evidence or "").strip().lower() for r in results
-              if r.status == CONTRADICTED and is_denial(r.claim) and r.evidence}
+    # A rule the answer DENIED is already shown under the denying statement. Matched on the SOP
+    # section (not the exact quote: the statement may quote the whole section and the missing step
+    # only one sentence of it).
+    denied_sections = {(r.source_id, r.section) for r in results
+                       if r.status == CONTRADICTED and is_denial(r.claim) and r.source_id}
+
+    def was_denied(e) -> bool:
+        return (e.source_id, e.section) in denied_sections
+
     for e in result.elements:
-        if e.coverage == "different" and e.quote.strip().lower() not in denied:
+        if e.coverage == "different" and not was_denied(e):
             gone = _missing_roles(e, answer)
             if gone:
                 e.coverage, e.covered = "absent", False
                 e.note = (e.note + " " if e.note else "") + f"The answer doesn't name: {', '.join(gone)}."
-        if e.coverage == "absent" and e.quote.strip().lower() in denied:
+        if e.coverage == "absent" and was_denied(e):
             e.coverage, e.covered = "different", False
             e.note = (e.note + " " if e.note else "") + "(The answer said the SOP doesn't cover this; shown under Statements.)"
         if cited and e.essential and not e.covered and (e.source_id, _chapter(e.section)) not in cited:
