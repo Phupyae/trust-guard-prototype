@@ -96,3 +96,15 @@ def test_no_cited_section_keeps_the_llm_judgement():
     comp = CompletenessResult(checked=True, elements=[_el("4.2", "Record the purpose.")])
     reconcile(comp, [VerificationResult(claim_id=1, claim="x", status="INSUFFICIENT_EVIDENCE", explanation="")])
     assert len(comp.missing) == 1
+
+
+def test_denial_answer_always_becomes_a_statement():
+    from modules.pipeline import with_denial_claims
+    ans = ("The provided documents do not specify the approval requirements for withdrawals between $20,001 "
+           "and $50,000. You should consult your branch supervisor for guidance on transactions in this range.")
+    claims = with_denial_claims([], ans)
+    assert len(claims) == 1 and claims[0].claim.startswith("The provided documents do not specify")
+    # already extracted -> not added twice
+    assert len(with_denial_claims(claims, ans)) == 1
+    # ordinary answers are untouched
+    assert with_denial_claims([], "Withdrawals above $50,000 need two approvals.") == []

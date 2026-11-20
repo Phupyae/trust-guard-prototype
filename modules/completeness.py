@@ -120,7 +120,7 @@ def _chapter(section: str) -> str:
     return (section or "").split(".")[0]
 
 
-def reconcile(result: CompletenessResult | None, results: list) -> CompletenessResult | None:
+def reconcile(result: CompletenessResult | None, results: list, question_evidence=None) -> CompletenessResult | None:
     """Rule-based clean-up after the LLM's completeness pass, so the same answer gets the same
     missing-step list every time (added after live runs flagged a teller paperwork step as
     "missing" from an answer to "who approves an $80,000 withdrawal?").
@@ -132,11 +132,15 @@ def reconcile(result: CompletenessResult | None, results: list) -> CompletenessR
        4 Identity and purpose checks, ...). A step only counts as essential if it is in the same
        chapter of the same SOP as a section the answer's statements were checked against. Steps
        from other chapters are kept as extra detail (audit mode) without raising a warning.
-       If no statement could be tied to a section, the LLM's judgement stands.
+       If no statement could be tied to a section, the section the QUESTION matches best (top
+       search result) is used instead; with neither, the LLM's judgement stands.
     """
     if not result or not result.elements:
         return result
     cited = {(r.source_id, _chapter(r.section)) for r in results if r.source_id and r.section}
+    if not cited and question_evidence:
+        top = question_evidence[0].chunk
+        cited = {(top.document_id, _chapter(top.section))}
     denied = {(r.evidence or "").strip().lower() for r in results
               if r.status == CONTRADICTED and is_denial(r.claim) and r.evidence}
     for e in result.elements:

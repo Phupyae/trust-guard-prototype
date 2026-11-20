@@ -13,6 +13,7 @@ TrustGuard's flow (Priority 1 stages kept, Priority 2 stages added):
 The UI, the tests and the evaluation script all call run_pipeline / run_two_agent, so
 what the judges see is exactly what the metrics measure.
 """
+import re
 import time
 import uuid
 from dataclasses import dataclass, field
@@ -21,13 +22,13 @@ from functools import lru_cache
 
 from modules.claim_extractor import extract_claims
 from modules.claim_verifier import verify_claims
-from modules.completeness import check_completeness, question_evidence, reconcile
+from modules.completeness import check_completeness, is_denial, question_evidence, reconcile
 from modules.correction import correction_evidence, needs_correction, suggest_correction
 from modules.document_loader import load_metadata
 from modules.policy_rules import coverage_check
 from modules.policy_validation import PolicyContext, PolicyRegistry
 from modules.reverify import reverify
-from modules.schemas import CONTRADICTED, INSUFFICIENT_EVIDENCE, SUPPORTED, CompletenessResult, Correction
+from modules.schemas import CONTRADICTED, Claim, INSUFFICIENT_EVIDENCE, SUPPORTED, CompletenessResult, Correction
 
 MAX_ANSWER_CHARS = 4000
 
@@ -128,6 +129,19 @@ def _noop(stage: str, data=None) -> None:
     pass
 
 
+def with_denial_claims(claims: list, answer: str) -> list:
+    """An answer like "The documents do not specify the approval requirements for ..." is a claim
+    about the policy (that no rule exists), but the extraction LLM sometimes returns no statements
+    for it, which made the same answer show "0 statements" on one run and "doesn't match" on the
+    next. Any such sentence that no extracted statement covers is added as a statement, so it is
+    always checked against the SOP."""
+    if any(is_denial(c.claim) for c in claims):
+        return claims
+    sentences = [s.strip() for s in re.split(r"(?<=[.!?])\s+", answer or "") if s.strip()]
+    extra = [s for s in sentences if is_denial(s)]
+    return claims + [Claim(claim_id=len(claims) + i + 1, claim=s) for i, s in enumerate(extra)]
+
+
 def run_pipeline(question: str, answer: str, retriever, llm, ctx: PolicyContext | None = None,
                  nli=None, on_stage=_noop, completeness: bool = True, correct: bool = True) -> Report:
     """on_stage(stage_name, data) is called as each stage finishes, so the UI can show
@@ -139,7 +153,7 @@ def run_pipeline(question: str, answer: str, retriever, llm, ctx: PolicyContext 
     on_stage("policy", ctx)
     t = {"start": time.perf_counter()}
 
-    claims = extract_claims(question, answer, llm)
+    claims = with_denial_claims(extract_claims(question, answer, llm), answer)
     report.coverage_warnings = coverage_check([c.claim for c in claims], answer)
     t["extracted"] = time.perf_counter()
     on_stage("claims", claims)
@@ -150,7 +164,7 @@ def run_pipeline(question: str, answer: str, retriever, llm, ctx: PolicyContext 
 
     q_evidence = question_evidence(question, retriever, ctx)
     if completeness:
-        report.completeness = reconcile(check_completeness(question, answer, q_evidence, llm), report.results)
+        report.completeness = reconcile(check_completeness(question, answer, q_evidence, llm), report.results, q_evidence)
         on_stage("completeness", report.completeness)
     t["completeness"] = time.perf_counter()
 
