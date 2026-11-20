@@ -144,9 +144,11 @@ def check_rules(sentence, rules: dict, question: str = "") -> dict:
     # Exemptions: items the section itself says are NOT subject to its requirements
     # ("The daily allowance does not require receipts."). A sentence about an exempt item
     # may say the step isn't needed - unless it generalises ("any/all/every expense").
-    exempt = policy_rules.names_exempt_item(sentence.text, entry.get("exemptions"))
+    parts = policy_rules.clauses(sentence.text)
     for topic in entry.get("required", []):
-        if topic in policy_rules._NO_REQUIREMENT and _says_not_required(sentence.text, topic) and not exempt:
+        if topic in policy_rules._NO_REQUIREMENT and any(
+                _says_not_required(part, topic) and not policy_rules.names_exempt_item(part, entry.get("exemptions"))
+                for part in parts):
             problems.append(f"says {topic} {_be(topic)} not needed; the rules table says {_it(topic)} required")
     for topic in entry.get("not_required", []):
         if _says_required(sentence.text, topic):

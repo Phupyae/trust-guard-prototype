@@ -199,3 +199,31 @@ def test_covered_answers_are_never_touched():
     comp = CompletenessResult(checked=True, elements=[_el("3.3", CASH_33, coverage="covered")])
     reconcile(comp, [_res(_C, "3.3")], answer="Something unrelated.")
     assert comp.missing == []
+
+
+# ---------- a requirement and its exemption in one sentence ----------
+RECEIPTS_52 = ("Original or digital receipts must be attached for every individual expense above $25. "
+               "The daily allowance does not require receipts.")
+
+
+def test_exemption_in_the_second_half_of_a_sentence_is_respected():
+    s = ("Receipts must be attached for every individual expense above $25, but the daily allowance "
+         "does not require receipts.")
+    assert policy_rules.requirement_check(s, RECEIPTS_52, ["daily allowance"])[0] == "n/a"
+
+
+def test_saying_no_receipts_for_any_expense_is_still_caught():
+    for s in ("You don't need receipts for any expense, including the daily allowance.",
+              "Receipts are not required for hotel stays, but the daily allowance does not need them either."):
+        assert policy_rules.requirement_check(s, RECEIPTS_52, ["daily allowance"])[0] == "mismatch", s
+
+
+def test_recheck_b_passes_the_20_nov_receipts_correction():
+    from modules.reverify import check_rules, load_rules
+    from modules.schemas import CorrectionSentence
+    ok = CorrectionSentence(text="Receipts must be attached for every individual expense above $25, but the daily "
+                                 "allowance does not require receipts.", source_id="TRAVEL_POLICY_V2", section="5.2")
+    bad = CorrectionSentence(text="You don't need receipts for any expense.", source_id="TRAVEL_POLICY_V2", section="5.2")
+    q = "When do I need to submit my travel claim and do I need receipts?"
+    assert check_rules(ok, load_rules(), q)["result"] == "pass"
+    assert check_rules(bad, load_rules(), q)["result"] == "fail"

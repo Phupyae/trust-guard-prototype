@@ -237,19 +237,32 @@ def names_exempt_item(text: str, exemptions: list[str] | None) -> bool:
             and not re.search(r"\b(?:any|all|every)\b", t))
 
 
+_CLAUSE_SPLIT = re.compile(r"\s*(?:;|,?\s+but\s+|,?\s+however,?\s+|,?\s+whereas\s+|,?\s+while\s+|,?\s+except\s+(?:that\s+)?)\s*", re.I)
+
+
+def clauses(text: str) -> list[str]:
+    """"Receipts are needed for every expense above $25, but the daily allowance does not need
+    them" -> two clauses. A requirement and its exemption often share one sentence; each part is
+    checked on its own so the "every" in one part doesn't cancel the exemption named in the other
+    (a correct correction failed re-check B this way in the 20 Nov rerun)."""
+    return [c for c in _CLAUSE_SPLIT.split(text or "") if c.strip()] or [text or ""]
+
+
 def requirement_check(claim: str, evidence: str, exemptions: list[str] | None = None) -> tuple[str, str]:
     """Flags the classic dangerous error: the answer says something is NOT required
     (approval, receipts) when the policy says it IS.
     `exemptions`: the cited section's rules-table exemptions. Only when the CLAIM names one
     ("The daily allowance does not require receipts.") does the check stand down, because
     the section itself says that item is exempt. Any other claim is still checked."""
-    c, e = claim.lower(), evidence.lower()
-    if names_exempt_item(claim, exemptions):
-        return "n/a", ""
-    for topic, patterns in _NO_REQUIREMENT.items():
-        says_not_required = any(re.search(p, c) for p in patterns)
-        if topic == "approval" and re.search(_DOUBLE_NEGATIVE, c):
-            says_not_required = False  # "no claim is approved automatically" = approval IS required
-        if says_not_required and re.search(_REQUIRES[topic], e):
-            return "mismatch", f"Requirement check: claim says {topic} is not required; evidence says it is."
+    e = evidence.lower()
+    for part in clauses(claim):
+        if names_exempt_item(part, exemptions):
+            continue  # this part is about an item the section exempts
+        c = part.lower()
+        for topic, patterns in _NO_REQUIREMENT.items():
+            says_not_required = any(re.search(p, c) for p in patterns)
+            if topic == "approval" and re.search(_DOUBLE_NEGATIVE, c):
+                says_not_required = False  # "no claim is approved automatically" = approval IS required
+            if says_not_required and re.search(_REQUIRES[topic], e):
+                return "mismatch", f"Requirement check: claim says {topic} is not required; evidence says it is."
     return "n/a", ""
