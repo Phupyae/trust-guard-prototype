@@ -87,13 +87,16 @@ with tab_wait:
             st.markdown(case_header(c), unsafe_allow_html=True)
             with st.expander("TrustGuard's findings"):
                 findings(c)
+            # The decision sits outside the form so the answer box can appear only for "Corrected answer".
+            choice = st.radio("Your decision", list(review_queue.DECISIONS),
+                              format_func=review_queue.DECISIONS.get, horizontal=True,
+                              index=0 if c.get("suggested_answer") else 1, key=f"choice_{c['case_id']}")
             with st.form(f"decide_{c['case_id']}"):
-                choice = st.radio("Your decision", list(review_queue.DECISIONS),
-                                  format_func=review_queue.DECISIONS.get, horizontal=True,
-                                  index=0 if c.get("suggested_answer") else 1)
-                text = st.text_area("Answer the employee should use (only for “Corrected answer”)",
-                                    value=c.get("suggested_answer", ""), max_chars=1500)
-                note = st.text_input("Note to the employee (optional)", max_chars=300)
+                text = ""
+                if choice == "corrected":
+                    text = st.text_area("Answer the employee should use", value=c.get("suggested_answer", ""),
+                                        max_chars=1500)
+                note = st.text_input("Note to the employee: why you decided this (optional)", max_chars=300)
                 if st.form_submit_button("Send decision", type="primary"):
                     if choice == "corrected" and not text.strip():
                         st.warning("Write the corrected answer first.")

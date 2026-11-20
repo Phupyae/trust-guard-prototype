@@ -164,7 +164,8 @@ def run_pipeline(question: str, answer: str, retriever, llm, ctx: PolicyContext 
 
     q_evidence = question_evidence(question, retriever, ctx)
     if completeness:
-        report.completeness = reconcile(check_completeness(question, answer, q_evidence, llm), report.results, q_evidence)
+        report.completeness = reconcile(check_completeness(question, answer, q_evidence, llm), report.results, q_evidence,
+                                        answer=answer)
         on_stage("completeness", report.completeness)
     t["completeness"] = time.perf_counter()
 

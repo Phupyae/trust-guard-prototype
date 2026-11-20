@@ -66,21 +66,6 @@ def for_turn(turn_id: str, log_dir: Path | None = None) -> dict | None:
     return matches[0] if matches else None
 
 
-def _norm(text: str) -> str:
-    return " ".join("".join(ch.lower() if ch.isalnum() or ch in "$." else " " for ch in text or "").split())
-
-
-def earlier_decision(question: str, turn_id: str, log_dir: Path | None = None) -> dict | None:
-    """Feedback to staff: the newest decided case for the same question, asked earlier by anyone.
-    Exact match after normalising case and punctuation, so a different question never borrows
-    someone else's decision."""
-    q = _norm(question)
-    for c in cases(log_dir).values():  # newest first
-        if c["status"] == "decided" and c.get("turn_id") != turn_id and _norm(c.get("question", "")) == q:
-            return c
-    return None
-
-
 def answer_to_use(case: dict) -> str:
     """What the employee should rely on after the review."""
     if case.get("decision") == "corrected":

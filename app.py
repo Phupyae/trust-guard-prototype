@@ -97,7 +97,9 @@ st.markdown('<div class="tg-hero-wrap tg-rise">' + MESH +
             '<p>Agent 1 answers your question. TrustGuard checks that answer against the SOP in effect, '
             'so you know whether you can rely on it.</p>'
             '<div class="tg-chips"><span>① Agent 1 answers</span><span>② TrustGuard checks</span>'
-            '<span>③ A person decides when unsure</span></div></div></div>', unsafe_allow_html=True)
+            '<span>③ A person decides when unsure</span></div>'
+            '<p class="tg-demo-note">Demo policies of Northbridge Bank, a fictional bank. Not OCBC policy.</p>'
+            '</div></div>', unsafe_allow_html=True)
 
 
 # ---------- cached resources (loaded once per server, not per click) ----------
@@ -299,8 +301,13 @@ def ring_html(report: Report) -> str:
             offset += length
     track = '<circle cx="35" cy="35" r="28" stroke="var(--inset)"/>'
     label = f'{c[SUPPORTED]}/{len(report.results)}' if report.results else "–"
-    return (f'<div class="tg-ring" role="img" aria-label="{c[SUPPORTED]} of {len(report.results)} statements match the SOP">'
-            f'<svg viewBox="0 0 70 70">{track}{segs}</svg><div class="num"><b>{label}</b><small>match</small></div></div>')
+    missing = len(report.missing)
+    if missing and segs:  # all stated facts may match, but the answer is incomplete: never a green "all good" ring
+        segs = segs.replace('stroke="var(--ok)"', 'stroke="var(--unk)"')
+    sub = f"stated · {missing} missing" if missing else "match"
+    return (f'<div class="tg-ring" role="img" aria-label="{c[SUPPORTED]} of {len(report.results)} statements match the SOP'
+            f'{f", {missing} required step(s) missing" if missing else ""}">'
+            f'<svg viewBox="0 0 70 70">{track}{segs}</svg><div class="num"><b>{label}</b><small>{sub}</small></div></div>')
 
 
 _QTY = re.compile(r"\$\s?\d[\d,]*(?:\.\d+)?|\b\d+\s+(?:business |working |calendar )?(?:days?|months?|weeks?|years?)\b|\b\d+(?:\.\d+)?\s?%")
@@ -658,18 +665,9 @@ def render_review(report: Report, key: str) -> None:
         return
     case = review_queue.for_turn(report.turn_id)
     who = review_queue.REVIEWER
-    before = review_queue.earlier_decision(report.question, report.turn_id) if case is None else None
-    if before is not None:
-        use = review_queue.answer_to_use(before)
-        st.markdown(f'<div class="tg-review done"><p class="who">{mark("ok", "✓", "Reviewed before by the " + who)}'
-                    f'<span class="tg-case">{esc(before["case_id"])}</span></p>'
-                    f'<p class="tg-small">Someone asked this same question earlier, and the {esc(who)} decided: '
-                    f'{esc(review_queue.DECISIONS[before["decision"]].lower())}.</p>'
-                    + (f'<div class="tg-lbl" style="margin-top:0.5rem">Their answer</div><p>{esc(use)}</p>' if use else "")
-                    + '</div>', unsafe_allow_html=True)
     if case is None:
         if level == "info":
-            why, ask = "No SOP in the repository covers this question.", "If you need an answer, you can ask the"
+            why, ask = "No relevant policy was found in the connected documents.", "If you need an answer, you can ask the"
         elif level == "error":
             why, ask = "TrustGuard found a problem with this answer.", "You can ask the"
         elif report.missing:
@@ -694,7 +692,14 @@ def render_review(report: Report, key: str) -> None:
                          icon=":material/fact_check:")
         return
     use = review_queue.answer_to_use(case)
-    note = f'<p class="tg-small">Note: {esc(case["note"])}</p>' if case.get("note") else ""
+    note = f'<p class="tg-small">Note from the reviewer: {esc(case["note"])}</p>' if case.get("note") else ""
+    when = case.get("decided_at", "")
+    try:
+        from datetime import datetime as _dt
+        when = _dt.fromisoformat(when).astimezone().strftime("%d %b %Y, %H:%M")
+    except (TypeError, ValueError):
+        pass
+    note += f'<p class="tg-small">Decided {esc(when)}</p>' if when else ""
     st.markdown(f'<div class="tg-review done"><p class="who">{mark("ok", "✓", "Reviewed by the " + who)}'
                 f'<span class="tg-case">{esc(case["case_id"])}</span></p>'
                 f'<p class="tg-small">{esc(review_queue.DECISIONS[case["decision"]])}</p>'

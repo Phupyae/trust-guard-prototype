@@ -120,7 +120,17 @@ def _chapter(section: str) -> str:
     return (section or "").split(".")[0]
 
 
-def reconcile(result: CompletenessResult | None, results: list, question_evidence=None) -> CompletenessResult | None:
+def _missing_roles(e: RequiredElement, answer: str) -> list[str]:
+    """Approvers the SOP section requires (from its rules table) that this element names but the
+    answer never mentions."""
+    from modules.reverify import load_rules
+    roles = (load_rules().get(e.source_id, {}).get(e.section) or {}).get("roles", [])
+    text, ans = (e.quote or e.element).lower(), (answer or "").lower()
+    return [r for r in roles if r.lower() in text and r.lower() not in ans]
+
+
+def reconcile(result: CompletenessResult | None, results: list, question_evidence=None,
+              answer: str = "") -> CompletenessResult | None:
     """Rule-based clean-up after the LLM's completeness pass, so the same answer gets the same
     missing-step list every time (added after live runs flagged a teller paperwork step as
     "missing" from an answer to "who approves an $80,000 withdrawal?").
@@ -134,6 +144,11 @@ def reconcile(result: CompletenessResult | None, results: list, question_evidenc
        from other chapters are kept as extra detail (audit mode) without raising a warning.
        If no statement could be tied to a section, the section the QUESTION matches best (top
        search result) is used instead; with neither, the LLM's judgement stands.
+    3. A required approver the answer never names is MISSING, even when the LLM called the whole
+       rule a "wrong value" ("above $30,000: Branch Manager" vs "above $50,000: Branch Manager and
+       Branch Operations Head" leaves out the Operations Head). Approvers come from the section's
+       rules table, so this is the same every run. Added after the 20 Nov evaluation, where this
+       omission was reported only as a wrong value.
     """
     if not result or not result.elements:
         return result
@@ -144,6 +159,11 @@ def reconcile(result: CompletenessResult | None, results: list, question_evidenc
     denied = {(r.evidence or "").strip().lower() for r in results
               if r.status == CONTRADICTED and is_denial(r.claim) and r.evidence}
     for e in result.elements:
+        if e.coverage == "different" and e.quote.strip().lower() not in denied:
+            gone = _missing_roles(e, answer)
+            if gone:
+                e.coverage, e.covered = "absent", False
+                e.note = (e.note + " " if e.note else "") + f"The answer doesn't name: {', '.join(gone)}."
         if e.coverage == "absent" and e.quote.strip().lower() in denied:
             e.coverage, e.covered = "different", False
             e.note = (e.note + " " if e.note else "") + "(The answer said the SOP doesn't cover this; shown under Statements.)"

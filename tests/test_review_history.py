@@ -41,15 +41,6 @@ def test_chat_id_cannot_escape_the_folder(tmp_path):
         chat_history.load("../../config", tmp_path)
 
 
-def test_same_question_later_sees_the_earlier_decision(tmp_path):
-    r = _report()
-    case = review_queue.request(r, "error", tmp_path)
-    review_queue.decide(case, "corrected", answer="Manager and Ops Head.", log_dir=tmp_path)
-    later = review_queue.earlier_decision("who approves an $80,000 withdrawal", "other-turn", tmp_path)
-    assert later and later["case_id"] == case
-    assert review_queue.earlier_decision("Who approves a $5,000 withdrawal?", "other-turn", tmp_path) is None
-
-
 # ---------- missing steps: rule-based clean-up (completeness.reconcile) ----------
 from modules.completeness import reconcile
 from modules.schemas import SUPPORTED, CONTRADICTED as _C
@@ -134,3 +125,20 @@ def test_cannot_with_amount_inside_limit_is_still_compared():
     # $30 is inside "up to $50", so "cannot waive $30" is wrong and must not be waved through
     q = "Can a Customer Service Officer waive a $30 fee?"
     assert policy_rules.negated_amounts_outside_band(q, "A CSO cannot waive a $30 fee.", FEE_31) == {}
+
+
+def test_unnamed_approver_counts_as_missing_even_if_llm_said_wrong_value():
+    # 20 Nov evaluation, case G: "above $30,000: Branch Manager" vs the rule naming two approvers
+    rule = ("Withdrawals above $50,000 require approval from both the Branch Manager and the Branch "
+            "Operations Head.")
+    comp = CompletenessResult(checked=True, elements=[_el("3.3", rule, coverage="different")])
+    reconcile(comp, [_res(_C, "3.3")], answer="Withdrawals above $30,000 require Branch Manager approval.")
+    assert len(comp.missing) == 1 and "Branch Operations Head" in comp.missing[0].note
+
+
+def test_named_approvers_with_a_wrong_amount_stay_a_wrong_value():
+    rule = ("Withdrawals above $50,000 require approval from both the Branch Manager and the Branch "
+            "Operations Head.")
+    comp = CompletenessResult(checked=True, elements=[_el("3.3", rule, coverage="different")])
+    reconcile(comp, [_res(_C, "3.3")], answer="Above $30,000 the Branch Manager and the Branch Operations Head approve.")
+    assert comp.missing == []

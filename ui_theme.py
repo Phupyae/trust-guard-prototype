@@ -357,6 +357,7 @@ mark.n-same {background:var(--blue-soft); color:var(--cobalt-deep); border-radiu
 .tg-hero-wrap .tg-top {z-index:1;}
 @media (max-width:720px) {.tg-glow .orb, .tg-glow .ring {display:none;}}
 @media (prefers-reduced-motion:reduce) {.tg-glow i, .tg-glow .orb, .tg-glow .ring, .tg-glow .mote, .tg-glow .sp {animation:none;}}
+.tg-demo-note {font-size:0.76rem !important; color:var(--ink-3) !important; margin:0.7rem 0 0 !important;}
 /* Cards arrive with a short rise, one after another */
 .tg-rise {animation:tg-rise .55s cubic-bezier(.2,.7,.2,1) both;}
 @keyframes tg-rise {from {opacity:0; transform:translateY(12px);}}
