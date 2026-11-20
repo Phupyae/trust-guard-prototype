@@ -120,13 +120,38 @@ def _chapter(section: str) -> str:
     return (section or "").split(".")[0]
 
 
+# Other ways staff and assistants name the same role. Used only to decide whether an answer
+# NAMES a role, so a wider list can only prevent false "missing approver" findings, never add them.
+ROLE_ALIASES = {
+    "branch operations head": ["branch operations head", "operations head", "ops head", "head of branch operations",
+                               "head of operations"],
+    "branch manager": ["branch manager"],
+    "department head": ["department head", "head of department", "head of the department", "departmental head"],
+    "direct manager": ["direct manager", "line manager", "reporting manager", "immediate manager", "your manager",
+                       "their manager", "his manager", "her manager", "the employee's manager"],
+    "regional head": ["regional head"],
+    "customer service officer": ["customer service officer"],
+    "group compliance": ["group compliance", "compliance team", "compliance"],
+}
+
+
+def _names_role(role: str, answer: str) -> bool:
+    ans = (answer or "").lower()
+    return any(re.search(rf"\b{re.escape(alias)}\b", ans) for alias in ROLE_ALIASES.get(role.lower(), [role.lower()]))
+
+
 def _missing_roles(e: RequiredElement, answer: str) -> list[str]:
-    """Approvers the SOP section requires (from its rules table) that this element names but the
-    answer never mentions."""
+    """Approvers that must ALL sign off (the section's rules table says `all_roles_required`), that
+    this element's SOP sentence names, and that the answer never names under any of their usual
+    names. Sections where an approver depends on the amount ("above $2,000 additionally ...") or
+    where a role only receives a report are not marked all-required, so they are never flagged:
+    that keeps the rule from adding false alarms."""
     from modules.reverify import load_rules
-    roles = (load_rules().get(e.source_id, {}).get(e.section) or {}).get("roles", [])
-    text, ans = (e.quote or e.element).lower(), (answer or "").lower()
-    return [r for r in roles if r.lower() in text and r.lower() not in ans]
+    rule = load_rules().get(e.source_id, {}).get(e.section) or {}
+    if not rule.get("all_roles_required"):
+        return []
+    sop_text = (e.quote or e.element).lower()
+    return [r for r in rule.get("roles", []) if r.lower() in sop_text and not _names_role(r, answer)]
 
 
 def reconcile(result: CompletenessResult | None, results: list, question_evidence=None,
@@ -146,9 +171,11 @@ def reconcile(result: CompletenessResult | None, results: list, question_evidenc
        search result) is used instead; with neither, the LLM's judgement stands.
     3. A required approver the answer never names is MISSING, even when the LLM called the whole
        rule a "wrong value" ("above $30,000: Branch Manager" vs "above $50,000: Branch Manager and
-       Branch Operations Head" leaves out the Operations Head). Approvers come from the section's
-       rules table, so this is the same every run. Added after the 20 Nov evaluation, where this
-       omission was reported only as a wrong value.
+       Branch Operations Head" leaves out the Operations Head). Only for sections whose rules table
+       marks every listed approver as required together, and only when the answer doesn't name the
+       role under any usual name (ROLE_ALIASES). An answer that names the approver with a wrong
+       amount stays a wrong value. Added after the 20 Nov evaluation, where this omission was
+       reported only as a wrong value.
     """
     if not result or not result.elements:
         return result

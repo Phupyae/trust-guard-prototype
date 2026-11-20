@@ -142,3 +142,60 @@ def test_named_approvers_with_a_wrong_amount_stay_a_wrong_value():
     comp = CompletenessResult(checked=True, elements=[_el("3.3", rule, coverage="different")])
     reconcile(comp, [_res(_C, "3.3")], answer="Above $30,000 the Branch Manager and the Branch Operations Head approve.")
     assert comp.missing == []
+
+
+# ---------- approver rule on cases it was not written for ----------
+EXP_71 = ("Claims of up to $2,000 per trip require approval from the employee's direct manager. Claims above "
+          "$2,000 per trip additionally require approval from the Department Head.")
+
+
+def _el_doc(doc, section, quote, coverage="different"):
+    return RequiredElement(element=quote, covered=False, coverage=coverage, source_id=doc, section=section,
+                           quote=quote, essential=True)
+
+
+def _res_doc(doc, status, section):
+    return VerificationResult(claim_id=1, claim="x", status=status, explanation="", source_id=doc, section=section)
+
+
+CASH_33 = ("Withdrawals above $50,000 require approval from both the Branch Manager and the Branch Operations "
+           "Head.")
+
+
+def test_other_name_for_the_operations_head_counts_as_named():
+    comp = CompletenessResult(checked=True, elements=[_el("3.3", CASH_33, coverage="different")])
+    reconcile(comp, [_res(_C, "3.3")], answer="Above $30,000 the Branch Manager and the Ops Head must approve.")
+    assert comp.missing == []
+
+
+def test_amount_dependent_approver_is_never_flagged():
+    # a $500 travel claim needs only the direct manager; the section is not marked all-required
+    comp = CompletenessResult(checked=True, elements=[_el_doc("TRAVEL_POLICY_V2", "7.1", EXP_71)])
+    reconcile(comp, [_res_doc("TRAVEL_POLICY_V2", _C, "7.1")], answer="A $500 claim needs your line manager's approval.")
+    assert comp.missing == []
+
+
+def test_single_approver_section_is_never_flagged():
+    comp = CompletenessResult(checked=True, elements=[_el_doc(
+        "SOP_OPS_047", "3.3", "Waivers above $500 per customer require approval from the Regional Head of Branch Banking.")])
+    reconcile(comp, [_res_doc("SOP_OPS_047", _C, "3.3")], answer="The Branch Manager can approve a $700 waiver.")
+    assert comp.missing == []
+
+
+def test_answer_naming_no_required_approver_misses_both():
+    comp = CompletenessResult(checked=True, elements=[_el("3.3", CASH_33, coverage="different")])
+    reconcile(comp, [_res(_C, "3.3")], answer="A supervisor must approve withdrawals above $50,000.")
+    assert len(comp.missing) == 1 and "Branch Manager" in comp.missing[0].note and "Branch Operations Head" in comp.missing[0].note
+
+
+def test_non_approver_sentence_in_an_all_required_section_is_not_flagged():
+    notice = "The customer must give 1 business day of advance notice so that the branch can arrange the cash."
+    comp = CompletenessResult(checked=True, elements=[_el("3.3", notice, coverage="different")])
+    reconcile(comp, [_res(_C, "3.3")], answer="The customer can collect the cash on the same day.")
+    assert comp.missing == [] and comp.wrong_values  # stays a wrong value, as before
+
+
+def test_covered_answers_are_never_touched():
+    comp = CompletenessResult(checked=True, elements=[_el("3.3", CASH_33, coverage="covered")])
+    reconcile(comp, [_res(_C, "3.3")], answer="Something unrelated.")
+    assert comp.missing == []
