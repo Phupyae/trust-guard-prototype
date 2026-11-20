@@ -232,3 +232,27 @@ def test_recheck_b_passes_the_20_nov_receipts_correction():
     q = "When do I need to submit my travel claim and do I need receipts?"
     assert check_rules(ok, load_rules(), q)["result"] == "pass"
     assert check_rules(bad, load_rules(), q)["result"] == "fail"
+
+
+# ---------- silence is not a contradiction ----------
+def _chunk(doc, section):
+    from modules.document_loader import load_knowledge_base
+    return next(c for c in load_knowledge_base() if c.document_id == doc and c.section == section)
+
+
+def test_added_approver_on_a_silent_policy_cannot_be_contradicted():
+    from modules.claim_verifier import silent_on_added_approver
+    claim = "If the hotel stay exceeds $200 per night, the employee must obtain prior written approval from their Department Head."
+    assert silent_on_added_approver(claim, _chunk("TRAVEL_POLICY_V1", "4.3")) == {"Department Head"}
+
+
+def test_wrong_approver_where_the_policy_names_approvers_stays_a_contradiction():
+    from modules.claim_verifier import silent_on_added_approver
+    claim = "Withdrawals above $50,000 require Regional Head approval."
+    assert silent_on_added_approver(claim, _chunk("SOP_OPS_021_V3_0", "3.3")) == set()
+
+
+def test_wrong_amount_on_a_silent_policy_stays_a_contradiction():
+    from modules.claim_verifier import silent_on_added_approver
+    claim = "Hotel stays above $300 per night need Department Head approval."
+    assert silent_on_added_approver(claim, _chunk("TRAVEL_POLICY_V1", "4.3")) == set()

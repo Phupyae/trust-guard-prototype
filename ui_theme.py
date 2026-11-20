@@ -359,6 +359,16 @@ mark.n-same {background:var(--blue-soft); color:var(--cobalt-deep); border-radiu
 @media (max-width:720px) {.tg-glow .orb, .tg-glow .ring {display:none;}}
 @media (prefers-reduced-motion:reduce) {.tg-glow i, .tg-glow .orb, .tg-glow .ring, .tg-glow .mote, .tg-glow .sp {animation:none;}}
 .tg-demo-note {font-size:0.76rem !important; color:var(--ink-3) !important; margin:0.7rem 0 0 !important;}
+/* Final decision after a person's review: leads the result */
+.tg-final {display:flex; gap:1rem; align-items:flex-start; background:var(--surface); border-radius:26px;
+  padding:1.1rem 1.3rem; box-shadow:var(--raise-sm); border-left:6px solid var(--ok); margin:0 0 0.6rem;}
+.tg-final .mark {width:2.4rem; height:2.4rem; border-radius:50%; background:var(--ok); color:#fff; display:flex;
+  align-items:center; justify-content:center; font-weight:700; flex:none; font-size:1.1rem;}
+.tg-final h4 {margin:0.15rem 0 0.5rem; font-size:1.25rem; font-weight:600; color:var(--ink);}
+.tg-final .ans {background:var(--field); box-shadow:var(--sink); border-radius:14px; padding:0.6rem 0.8rem;
+  margin:0.3rem 0 0.4rem; color:var(--ink);}
+.tg-was {font-size:0.86rem; color:var(--ink-3); margin:0 0 0.7rem 0.3rem;}
+.tg-was b {color:var(--ink-2); font-weight:600;}
 /* Cards arrive with a short rise, one after another */
 .tg-rise {animation:tg-rise .55s cubic-bezier(.2,.7,.2,1) both;}
 @keyframes tg-rise {from {opacity:0; transform:translateY(12px);}}

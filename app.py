@@ -708,13 +708,54 @@ def render_review(report: Report, key: str) -> None:
                 + note + '</div>', unsafe_allow_html=True)
 
 
-def render_findings(report: Report, key: str) -> None:
+def review_queue_norm(text: str) -> str:
+    return " ".join(re.sub(r"[^a-z0-9$.]+", " ", (text or "").lower()).split())
+
+
+FINAL_TITLES = {"confirm_trustguard": "Approved: use TrustGuard's corrected answer",
+                "corrected": "Corrected by the Branch Operations Head",
+                "agent1_correct": "Approved: the assistant's answer is correct"}
+
+
+def final_decision_html(case: dict) -> str:
+    """Once the Branch Operations Head has decided, their decision is the result staff act on."""
+    use = review_queue.answer_to_use(case)
+    when = case.get("decided_at", "")
+    try:
+        from datetime import datetime as _dt
+        when = _dt.fromisoformat(when).astimezone().strftime("%d %b %Y, %H:%M")
+    except (TypeError, ValueError):
+        pass
+    return ('<div class="tg-final tg-rise"><div class="mark" aria-hidden="true">✓</div><div>'
+            f'<div class="tg-lbl">Final decision · {esc(case.get("reviewer") or review_queue.REVIEWER)} · '
+            f'{esc(case["case_id"])}</div>'
+            f'<h4>{esc(FINAL_TITLES.get(case["decision"], "Reviewed"))}</h4>'
+            + (f'<div class="tg-lbl">Use this answer</div><div class="ans">{esc(use)}</div>' if use else "")
+            + (f'<p class="tg-small">Note from the reviewer: {esc(case["note"])}</p>' if case.get("note") else "")
+            + (f'<p class="tg-small">Decided {esc(when)}</p>' if when else "")
+            + '</div></div>')
+
+
+def render_findings(report: Report, key: str, repeat: bool = False) -> None:
     level, _ = report.overall
     k, sym, title, sentence = headline(report)
+    case = review_queue.for_turn(report.turn_id)
+    if case is not None and case["status"] == "decided":
+        # The person's decision leads; TrustGuard's own finding stays visible underneath, for the audit trail.
+        st.markdown(final_decision_html(case)
+                    + f'<div class="tg-was"><b>TrustGuard\'s own check:</b> {esc(title)}. {esc(sentence)} '
+                      'Details below.</div>', unsafe_allow_html=True)
+        with st.expander("Show TrustGuard's findings"):
+            render_tabs(report, key)
+        render_feedback(report)
+        return
     st.markdown(f'<div class="tg-hero tg-rise">{ring_html(report)}<div class="tg-result tg-{k}">'
                 f'<div class="mark" aria-hidden="true"><span>{sym}</span></div>'
                 f'<div><h4>{esc(title)}</h4><p>{esc(sentence)}</p></div></div></div>'
                 + report_tracker(report), unsafe_allow_html=True)
+    if repeat:
+        st.caption("This question was asked before in this chat. Each answer is checked on its own: earlier "
+                   "checks and reviews don't carry over to a new answer.")
     if report.needs_review:
         st.markdown('<div class="tg-flag"><b>A person should review this.</b> Two of TrustGuard\'s own checks '
                     'disagreed, or part of the answer couldn\'t be checked, so it won\'t mark this as verified.</div>',
@@ -769,7 +810,8 @@ for i, turn in enumerate(st.session_state.turns):
     with st.chat_message("TrustGuard", avatar=TG_AVATAR):
         st.markdown(A2_MARK + agent_label("TrustGuard check", f'{rep.timings.get("trustguard_total_s", 0)} s'),
                     unsafe_allow_html=True)
-        render_findings(rep, f"t{i}")
+        earlier = {review_queue_norm(t["question"]) for t in st.session_state.turns[:i] if t.get("kind") == "report"}
+        render_findings(rep, f"t{i}", repeat=review_queue_norm(rep.question) in earlier)
 
 # After the first answer, keep a few example questions under the conversation (ones not asked yet),
 # so the demo can move on to the next case without typing.

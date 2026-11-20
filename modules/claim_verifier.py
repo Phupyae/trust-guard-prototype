@@ -44,7 +44,7 @@ Work in this order, filling the fields in this order:
 5. status: compare the claim with policy_requirement and choose exactly one:
    - SUPPORTED: the passage states what the claim says. Paraphrase is fine; facts (amounts, limits, conditions, approvers, deadlines) must match.
    - CONTRADICTED: the passage states something incompatible with the claim: a different amount, deadline or approver, a missing required approver when the claim lists who must approve, or the claim says a step is not needed when the passage requires it.
-   - INSUFFICIENT_EVIDENCE: no passage addresses the claim, so it can be neither confirmed nor refuted.
+   - INSUFFICIENT_EVIDENCE: no passage addresses the claim, so it can be neither confirmed nor refuted. This includes a claim that ADDS something the passages never mention (an extra approval step, an approver, a condition): a passage that is silent about it does not contradict it. Choose CONTRADICTED only when a passage states something that cannot be true at the same time as the claim.
 6. explanation: one or two plain-English sentences for a bank employee, naming the specific values that match or differ.
 
 Rules for judging:
@@ -117,6 +117,22 @@ def build_derivation(result: VerificationResult, cited, ctx: PolicyContext | Non
         _step(4, "What the rule says", requirement or result.evidence),
         _step(5, "Result", f"{status_word}. {result.explanation}"),
     ]
+
+
+
+def silent_on_added_approver(claim_text: str, cited, case: dict | None = None) -> set[str]:
+    """Approvers the claim names that the cited section never mentions, returned only when the
+    section names NO approver at all (text or rules table) and the code checks find no conflicting
+    amount or requirement. Empty set = the contradiction stands."""
+    from modules.reverify import load_rules, roles_in
+    if roles_in(cited.text) or (load_rules().get(cited.document_id, {}).get(cited.section) or {}).get("roles"):
+        return set()
+    if policy_rules.numeric_check(claim_text, cited.text, ignore=case or {})[0] == "mismatch":
+        return set()
+    if policy_rules.requirement_check(claim_text, cited.text,
+                                      section_exemptions(cited.document_id, cited.section))[0] == "mismatch":
+        return set()
+    return roles_in(claim_text)
 
 
 def verify_claim(claim: Claim, question: str, evidence: list[Evidence], relevant: list[Evidence],
@@ -203,6 +219,21 @@ def verify_claim(claim: Claim, question: str, evidence: list[Evidence], relevant
             checks.append(f"✓ {message}")
         else:
             checks.append(message)
+
+    # Rule 5: silence is not a contradiction. A claim that adds an approver the cited section
+    # never mentions ("stays above $200 need Department Head approval" against a 2025 policy that
+    # only states the $200 limit) can't be confirmed, but nothing in the SOP says otherwise. Only
+    # when the code checks found no conflicting amount or requirement AND the section names no
+    # approver at all; a section that names different approvers is still a contradiction.
+    if status == CONTRADICTED:
+        added = silent_on_added_approver(claim.claim, cited, case)
+        if added:
+            status, needs_review = INSUFFICIENT_EVIDENCE, True
+            explanation = (f"The SOP version in effect ({cited.document_title} v{cited.version} §{cited.section}) "
+                           f"doesn't mention {' or '.join(sorted(added))} approval, so this can't be confirmed. "
+                           "It doesn't say the opposite either.")
+            checks.append("⚠ Silence check: the section names no approver, so an added approver can't be "
+                          "contradicted by it. Changed from CONTRADICTED to INSUFFICIENT_EVIDENCE.")
 
     r = VerificationResult(
         **base, status=status, explanation=explanation, evidence=quote,
