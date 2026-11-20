@@ -1,0 +1,6 @@
+[
+  {
+    "run_id": "H_cash_correct-r1",
+    "error": "LLMError: Gemini free-tier rate limit reached. Wait a minute, or the daily quota may be used up."
+  }
+]
