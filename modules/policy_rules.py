@@ -104,6 +104,25 @@ def case_amounts_in_band(question: str, section: str) -> dict[str, set[float]]:
     return {"money": inside} if inside else {}
 
 
+_NEGATED = re.compile(r"\b(?:cannot|can\s*not|can't|may\s+not|must\s+not|is\s+not\s+(?:allowed|permitted|authori[sz]ed)|"
+                      r"not\s+(?:allowed|permitted|authori[sz]ed)|isn't\s+(?:allowed|permitted))\b", re.I)
+
+
+def negated_amounts_outside_band(question: str, claim: str, section: str) -> dict[str, set[float]]:
+    """"A CSO cannot waive a $300 fee" against "may waive fees of up to $50": the $300 is the
+    customer's case and lies OUTSIDE the band, and the claim says the action is NOT allowed, so the
+    claim agrees with the policy. Without this the numeric check saw $300 vs $50 and called a
+    correct answer unconfirmed (live run, 20 Nov). Only for negated claims and only for amounts
+    outside the band: "a CSO can waive $300" is still compared, and still a mismatch."""
+    if not _NEGATED.search(claim or ""):
+        return {}
+    band = policy_band(section)
+    if band is None:
+        return {}
+    outside = {v for v in extract_quantities(question).get("money", set()) if not in_band(v, band)}
+    return {"money": outside} if outside else {}
+
+
 def numeric_check(claim: str, evidence: str, ignore: dict[str, set[float]] | None = None) -> tuple[str, str]:
     """Returns (result, message) where result is 'match', 'mismatch' or 'n/a'.
     `ignore`: quantities to skip, e.g. case_quantities() from the question."""

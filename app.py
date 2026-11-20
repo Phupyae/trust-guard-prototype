@@ -668,9 +668,15 @@ def render_review(report: Report, key: str) -> None:
                     + (f'<div class="tg-lbl" style="margin-top:0.5rem">Their answer</div><p>{esc(use)}</p>' if use else "")
                     + '</div>', unsafe_allow_html=True)
     if case is None:
-        why = ("TrustGuard couldn't fully confirm this." if report.needs_review or level == "warning"
-               else "TrustGuard found a problem with this answer.")
-        st.markdown(f'<div class="tg-review"><p class="who">Not sure what to do?</p><p>{esc(why)} You can ask the '
+        if level == "info":
+            why, ask = "No SOP in the repository covers this question.", "If you need an answer, you can ask the"
+        elif level == "error":
+            why, ask = "TrustGuard found a problem with this answer.", "You can ask the"
+        elif report.missing:
+            why, ask = "This answer leaves out a step the SOP requires.", "You can ask the"
+        else:
+            why, ask = "TrustGuard couldn't fully confirm this.", "You can ask the"
+        st.markdown(f'<div class="tg-review"><p class="who">Not sure what to do?</p><p>{esc(why)} {ask} '
                     f'{esc(who)} to review it before you act.</p></div>', unsafe_allow_html=True)
         if st.button(f"Ask the {who}", key=f"askrv_{key}", type="primary", icon=":material/person_raised_hand:"):
             review_queue.request(report, reason="needs_review" if report.needs_review else level)
@@ -770,9 +776,11 @@ if st.session_state.turns:
 
 
 
-def add_reply(question: str, reply: str, guard: bool, note: str = "") -> None:
-    st.session_state.turns.append({"kind": "reply", "question": question, "reply": reply, "guard": guard,
-                                   "note": note})
+def add_reply(question: str, reply: str, guard: bool, note: str = "", clarify_for: str = "") -> None:
+    turn = {"kind": "reply", "question": question, "reply": reply, "guard": guard, "note": note}
+    if clarify_for:
+        turn["clarify_for"] = clarify_for  # the question the assistant asked about; the next message completes it
+    st.session_state.turns.append(turn)
     chat_history.save(st.session_state.chat_id, st.session_state.turns)
     st.rerun()
 
@@ -799,13 +807,21 @@ if question:
         st.markdown(checked.text)
     try:
         # ---- Layer 2: what kind of message is this? (Agent 1's cheap model) ----
+        # A reply to the assistant's clarifying question completes the ORIGINAL question
+        # ("Germany" -> "How much can I claim per day ...? (Germany)"), so Agent 1 answers and
+        # TrustGuard checks the whole question, not just the last message.
+        prev = st.session_state.turns[-1] if st.session_state.turns else {}
+        full = f'{prev["clarify_for"]} ({checked.text})' if prev.get("clarify_for") else checked.text
         with st.spinner("Reading your question…"):
-            intent = classify(checked.text, agent1_llm)
+            intent = classify(full, agent1_llm)
+        if intent.category == "unclear" and prev.get("clarify_for"):
+            intent.category = "in_scope"  # ask at most once; answer with what we have
         if intent.category != "in_scope":
             event_log.write("blocked_inputs", {"kind": intent.category, "text": checked.text})
             add_reply(checked.text, intent.reply, guard=False,
                       note="Nothing to verify: this isn't a policy question." if intent.category != "unclear"
-                      else "Nothing to verify yet: the assistant needs more detail first.")
+                      else "Nothing to verify yet: the assistant needs more detail first.",
+                      clarify_for=full if intent.category == "unclear" else "")
         notes_in = [n for n in (checked.message, intent.note) if n]
 
         # ---- Agent 1 answers in real time ----

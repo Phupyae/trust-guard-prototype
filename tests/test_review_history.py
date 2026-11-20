@@ -108,3 +108,29 @@ def test_denial_answer_always_becomes_a_statement():
     assert len(with_denial_claims(claims, ans)) == 1
     # ordinary answers are untouched
     assert with_denial_claims([], "Withdrawals above $50,000 need two approvals.") == []
+
+
+# ---------- "cannot" + an amount above the limit agrees with the policy ----------
+from modules import policy_rules
+
+FEE_31 = "A Customer Service Officer may waive fees of up to $50 per customer in any 12-month period."
+Q300 = "Can a Customer Service Officer waive a $300 fee for a customer?"
+
+
+def test_cannot_waive_amount_above_limit_is_not_a_number_conflict():
+    ignore = policy_rules.negated_amounts_outside_band(Q300, "A Customer Service Officer cannot waive a $300 fee.", FEE_31)
+    assert ignore == {"money": {300.0}}
+    result, _ = policy_rules.numeric_check("A Customer Service Officer cannot waive a $300 fee.", FEE_31, ignore=ignore)
+    assert result != "mismatch"
+
+
+def test_can_waive_amount_above_limit_is_still_a_conflict():
+    claim = "A Customer Service Officer can waive a $300 fee."
+    assert policy_rules.negated_amounts_outside_band(Q300, claim, FEE_31) == {}
+    assert policy_rules.numeric_check(claim, FEE_31, ignore={})[0] == "mismatch"
+
+
+def test_cannot_with_amount_inside_limit_is_still_compared():
+    # $30 is inside "up to $50", so "cannot waive $30" is wrong and must not be waved through
+    q = "Can a Customer Service Officer waive a $30 fee?"
+    assert policy_rules.negated_amounts_outside_band(q, "A CSO cannot waive a $30 fee.", FEE_31) == {}

@@ -36,7 +36,7 @@ def _path(chat_id: str, log_dir: Path | None = None) -> Path:
 def _turn_to_dict(turn: dict) -> dict:
     if turn.get("kind") == "report":
         return {"kind": "report", "question": turn["question"], "report": turn["report"].to_dict()}
-    return {k: v for k, v in turn.items() if k in ("kind", "question", "reply", "guard", "note")}
+    return {k: v for k, v in turn.items() if k in ("kind", "question", "reply", "guard", "note", "clarify_for")}
 
 
 def _turn_from_dict(turn: dict) -> dict:
