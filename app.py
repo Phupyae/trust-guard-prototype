@@ -36,6 +36,7 @@ from modules.llm_client import LLMError, get_client
 from modules.nli import NLIChecker
 from modules.pipeline import InputError, Report, default_registry, run_pipeline
 from modules.policy_validation import PolicyContext, fmt
+from modules.completeness import is_denial
 from modules.schemas import CONTRADICTED, INSUFFICIENT_EVIDENCE, SUPPORTED
 from ui_theme import MESH, apply_base_theme, icon, page_nav
 
@@ -309,13 +310,30 @@ def _norm(token: str) -> str:
     return re.sub(r"[\s,$]", "", token.lower())
 
 
+def _same_qty(token: str, others: set) -> bool:
+    """$20,001 and $20,000 are the same boundary ("between $20,001 and ..." = "above $20,000"),
+    so they are not shown as a wrong amount."""
+    t = _norm(token)
+    if t in others:
+        return True
+    num = re.match(r"^(\d+(?:\.\d+)?)(.*)$", t)
+    if not num:
+        return False
+    value, unit = float(num.group(1)), num.group(2)
+    for o in others:
+        m = re.match(r"^(\d+(?:\.\d+)?)(.*)$", o)
+        if m and m.group(2) == unit and abs(float(m.group(1)) - value) <= 1 and value >= 100:
+            return True
+    return False
+
+
 def highlight(text: str, other: str, side: str) -> str:
     """Escapes text and marks amounts and periods. On the assistant's side, a number the SOP doesn't
     contain is struck through in red; on the SOP side, a number the assistant didn't use is green."""
     found = {_norm(m.group()) for m in _QTY.finditer(other or "")}
     out, last = "", 0
     for m in _QTY.finditer(text or ""):
-        same = _norm(m.group()) in found
+        same = _same_qty(m.group(), found)
         cls = "n-same" if same else ("n-bad" if side == "assistant" else "n-good")
         out += esc(text[last:m.start()]) + f'<mark class="{cls}">{esc(m.group())}</mark>'
         last = m.end()
@@ -373,13 +391,17 @@ def wrong_and_right(claim: str, evidence: str) -> tuple[list[str], list[str]]:
     c = [m.group() for m in _QTY.finditer(claim or "")]
     e = [m.group() for m in _QTY.finditer(evidence or "")]
     cn, en = {_norm(x) for x in c}, {_norm(x) for x in e}
-    return [x for x in c if _norm(x) not in en], [x for x in e if _norm(x) not in cn]
+    return [x for x in c if not _same_qty(x, en)], [x for x in e if not _same_qty(x, cn)]
 
 
 def fix_line(r) -> str:
     """"was → now, because …" for a statement that doesn't match."""
     if r.status != CONTRADICTED or not r.source_id:
         return ""
+    if is_denial(r.claim):  # "the documents do not specify ...": the SOP does, so say where
+        return ('<div class="tg-fixline"><span class="was">Not in the SOP</span><span class="arr">→</span>'
+                f'<span class="now">It is: v{esc(r.version)} §{esc(r.section)}</span>'
+                f'<span class="tg-small" style="margin:0">{esc(r.evidence)}</span></div>')
     was, now = wrong_and_right(r.claim, r.evidence)
     if not was and not now:
         return ""

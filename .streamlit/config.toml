@@ -11,3 +11,5 @@ headless = true
 [client]
 # Pages are linked from the sidebar by ui_theme.page_nav() instead, with readable names.
 showSidebarNavigation = false
+# Hide Streamlit's own "Deploy" button and developer menu items for the demo.
+toolbarMode = "minimal"

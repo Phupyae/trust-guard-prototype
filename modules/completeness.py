@@ -18,10 +18,12 @@ ESSENTIAL ones (without which the employee would act wrongly) make the answer
 (Added after the first real run flagged "partial days are paid at 50%" as missing from a
 correct answer to "what are the reimbursement rules?": a false alarm.)
 """
+import re
+
 from modules import policy_rules
 from modules.evidence_retriever import expand_siblings
 from modules.policy_validation import PolicyContext
-from modules.schemas import CompletenessResult, RequiredElement
+from modules.schemas import CONTRADICTED, CompletenessResult, RequiredElement
 
 MAX_ELEMENTS = 4
 
@@ -102,4 +104,45 @@ def check_completeness(question: str, answer: str, evidence, llm) -> Completenes
             source_title=c.document_title, section=c.section, section_title=c.section_title,
             version=c.version, quote=quote, note=(item.get("note") or "").strip(),
             essential=item.get("essential", True) is not False))
+    return result
+
+
+# "The documents do not specify ...", "the policy doesn't cover ...": the answer DENIES a rule exists.
+_DENIAL = re.compile(r"\b(?:do(?:es)?\s*n[o']t|not)\s+(?:specify|say|state|mention|cover|include|address|provide)|"
+                     r"\bno\s+(?:information|guidance|rule|requirement)s?\b|\bnot\s+(?:specified|covered|stated)\b", re.I)
+
+
+def is_denial(claim: str) -> bool:
+    return bool(_DENIAL.search(claim or ""))
+
+
+def _chapter(section: str) -> str:
+    return (section or "").split(".")[0]
+
+
+def reconcile(result: CompletenessResult | None, results: list) -> CompletenessResult | None:
+    """Rule-based clean-up after the LLM's completeness pass, so the same answer gets the same
+    missing-step list every time (added after live runs flagged a teller paperwork step as
+    "missing" from an answer to "who approves an $80,000 withdrawal?").
+
+    1. No double counting: if the answer DENIED a rule ("the documents do not specify ...") and that
+       statement is already marked as not matching, the rule it denied is a wrong answer, not a
+       separate missing step. It is shown once, under the statement.
+    2. Stay on topic: SOPs are organised in chapters (cash withdrawals: 3 Approval limits,
+       4 Identity and purpose checks, ...). A step only counts as essential if it is in the same
+       chapter of the same SOP as a section the answer's statements were checked against. Steps
+       from other chapters are kept as extra detail (audit mode) without raising a warning.
+       If no statement could be tied to a section, the LLM's judgement stands.
+    """
+    if not result or not result.elements:
+        return result
+    cited = {(r.source_id, _chapter(r.section)) for r in results if r.source_id and r.section}
+    denied = {(r.evidence or "").strip().lower() for r in results
+              if r.status == CONTRADICTED and is_denial(r.claim) and r.evidence}
+    for e in result.elements:
+        if e.coverage == "absent" and e.quote.strip().lower() in denied:
+            e.coverage, e.covered = "different", False
+            e.note = (e.note + " " if e.note else "") + "(The answer said the SOP doesn't cover this; shown under Statements.)"
+        if cited and e.essential and not e.covered and (e.source_id, _chapter(e.section)) not in cited:
+            e.essential = False
     return result

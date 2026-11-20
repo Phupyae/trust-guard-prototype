@@ -48,3 +48,51 @@ def test_same_question_later_sees_the_earlier_decision(tmp_path):
     later = review_queue.earlier_decision("who approves an $80,000 withdrawal", "other-turn", tmp_path)
     assert later and later["case_id"] == case
     assert review_queue.earlier_decision("Who approves a $5,000 withdrawal?", "other-turn", tmp_path) is None
+
+
+# ---------- missing steps: rule-based clean-up (completeness.reconcile) ----------
+from modules.completeness import reconcile
+from modules.schemas import SUPPORTED, CONTRADICTED as _C
+
+SOP = "SOP_OPS_021_V3_0"
+APPROVAL_32 = "Withdrawals above $20,000 and up to $50,000 require Branch Manager approval."
+
+
+def _el(section, quote, coverage="absent", essential=True):
+    return RequiredElement(element=quote, covered=coverage == "covered", coverage=coverage, source_id=SOP,
+                           section=section, quote=quote, essential=essential)
+
+
+def _res(status, section, claim="x", evidence=""):
+    return VerificationResult(claim_id=1, claim=claim, status=status, explanation="", source_id=SOP,
+                              section=section, evidence=evidence)
+
+
+def test_step_from_another_chapter_is_extra_detail_not_a_warning():
+    # "Who approves $80,000?" -> answer checked against 3.3 (approval limits); 4.2 is purpose recording
+    comp = CompletenessResult(checked=True, elements=[
+        _el("3.3", "The customer must give 1 business day of advance notice."),
+        _el("4.2", "For withdrawals above $20,000, the teller must ask for and record the purpose.")])
+    reconcile(comp, [_res(SUPPORTED, "3.3")])
+    assert [e.section for e in comp.missing] == ["3.3"]          # notice still flagged
+    assert not comp.elements[1].essential                         # paperwork step kept as detail
+
+
+def test_neighbouring_section_in_same_chapter_still_counts():
+    # fee waiver: answer cites 3.1 (CSO), the missing Branch Manager rule is 3.2 -> still missing
+    comp = CompletenessResult(checked=True, elements=[_el("3.2", "Waivers above $50 require Branch Manager approval.")])
+    reconcile(comp, [_res(_C, "3.1")])
+    assert len(comp.missing) == 1
+
+
+def test_denied_rule_is_not_counted_twice():
+    comp = CompletenessResult(checked=True, elements=[_el("3.2", APPROVAL_32)])
+    reconcile(comp, [_res(_C, "3.2", claim="The documents do not specify the approval requirements for "
+                                            "withdrawals between $20,001 and $50,000.", evidence=APPROVAL_32)])
+    assert comp.missing == [] and comp.elements[0].coverage == "different"
+
+
+def test_no_cited_section_keeps_the_llm_judgement():
+    comp = CompletenessResult(checked=True, elements=[_el("4.2", "Record the purpose.")])
+    reconcile(comp, [VerificationResult(claim_id=1, claim="x", status="INSUFFICIENT_EVIDENCE", explanation="")])
+    assert len(comp.missing) == 1

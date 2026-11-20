@@ -21,7 +21,7 @@ from functools import lru_cache
 
 from modules.claim_extractor import extract_claims
 from modules.claim_verifier import verify_claims
-from modules.completeness import check_completeness, question_evidence
+from modules.completeness import check_completeness, question_evidence, reconcile
 from modules.correction import correction_evidence, needs_correction, suggest_correction
 from modules.document_loader import load_metadata
 from modules.policy_rules import coverage_check
@@ -150,7 +150,7 @@ def run_pipeline(question: str, answer: str, retriever, llm, ctx: PolicyContext 
 
     q_evidence = question_evidence(question, retriever, ctx)
     if completeness:
-        report.completeness = check_completeness(question, answer, q_evidence, llm)
+        report.completeness = reconcile(check_completeness(question, answer, q_evidence, llm), report.results)
         on_stage("completeness", report.completeness)
     t["completeness"] = time.perf_counter()
 
